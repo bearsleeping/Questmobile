@@ -54,7 +54,7 @@
     eternal: { accent: "#ffdf7a", accentSoft: "#6e5b24", rgb: "255,223,122", rare: true }
   };
   let entries = [];
-  const FETCH_TIMEOUT_MS = 8000;
+  const FETCH_TIMEOUT_MS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream ? 20000 : 8000;
   const CONNECTIVITY_POLL_MS = 30000;
   const RECONNECT_ATTEMPTS = 3;
   const RECONNECT_DELAY_MS = 1200;

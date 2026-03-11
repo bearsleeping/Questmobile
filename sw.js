@@ -1,4 +1,4 @@
-const CACHE_NAME = 'quest-mobile-cache-v30';
+const CACHE_NAME = 'quest-mobile-cache-v31';
 const URLS_TO_CACHE = [
   './style.css',
   './manifest.json',
