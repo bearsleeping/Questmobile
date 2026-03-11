@@ -1,10 +1,9 @@
-﻿﻿﻿﻿const App = (() => {
+﻿const App = (() => {
   const legacyStorageKey = "workflow_entries_v1";
   const legacyProfileStateKey = "workflow_profile_v1";
   const activeUserKey = "workflow_active_user_v1";
   const localSessionKey = "workflow_local_session_v1";
   const cloudTable = "workflow_profiles";
-  const leaderboardTable = "workflow_leaderboard";
   const timerStorageKey = "workflow_timer_state_v1";
   const plannerTable = "workflow_planner_notes";
   const plannerLocalKey = "workflow_planner_board_v1";
@@ -55,26 +54,29 @@
     eternal: { accent: "#ffdf7a", accentSoft: "#6e5b24", rgb: "255,223,122", rare: true }
   };
   let entries = [];
+  const FETCH_TIMEOUT_MS = 8000;
+  const CONNECTIVITY_POLL_MS = 30000;
+  const RECONNECT_ATTEMPTS = 3;
+  const RECONNECT_DELAY_MS = 1200;
   let prefersReducedMotion = false;
   let selectedTag = "";
   let calendarViewDate = new Date();
-  let earningsViewDate = new Date();
   let plannerViewDate = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
   let plannerSelectedDate = toIsoDate(new Date());
   let plannerHighlightedDate = "";
   let plannerPendingScrollToMatch = false;
   let inactivityPenaltyState = { inactiveDays: 0, decayDays: 0, expPenalty: 0 };
-  let leaderboardRows = [];
   let activeUserId = "";
   let authClient = null;
   let authUser = null;
   let cloudSyncTimerId = null;
-  let leaderboardSyncTimerId = null;
-  let leaderboardLoading = false;
-  let leaderboardLastFetchAt = 0;
   let plannerNotes = [];
   let plannerCloudEnabled = false;
+  let deferredInstallPrompt = null;
   let lastKnownLevel = null;
+  let connectivityHandlersAttached = false;
+  let refreshInFlight = false;
+  let reconnectInFlight = false;
   let profileState = {
     unlockedAchievementIds: [],
     bonusExp: 0,
@@ -107,7 +109,6 @@
     accountAvatarUrlInput: document.getElementById("accountAvatarUrlInput"),
     accountAvatarFileInput: document.getElementById("accountAvatarFileInput"),
     accountFileTriggerBtn: document.getElementById("accountFileTriggerBtn"),
-    accountHourlyRateInput: document.getElementById("accountHourlyRateInput"),
     accountAvatarPreview: document.getElementById("accountAvatarPreview"),
     accountUnder26Toggle: document.getElementById("accountUnder26Toggle"),
     accountSaveBtn: document.getElementById("accountSaveBtn"),
@@ -185,11 +186,6 @@
     earningsYearGross: document.getElementById("earningsYearGross"),
     earningsYearNet: document.getElementById("earningsYearNet"),
     earningsHint: document.getElementById("earningsHint"),
-    earningsMonthLabel: document.getElementById("earningsMonthLabel"),
-    earningsPrevBtn: document.getElementById("earningsPrevBtn"),
-    earningsNextBtn: document.getElementById("earningsNextBtn"),
-    leaderboardStatus: document.getElementById("leaderboardStatus"),
-    leaderboardBody: document.getElementById("leaderboardBody"),
     userRank: document.getElementById("userRank"),
     nextRank: document.getElementById("nextRank"),
     rankMeta: document.getElementById("rankMeta"),
@@ -223,6 +219,9 @@
     plannerSelectedDateMeta: document.getElementById("plannerSelectedDateMeta"),
     plannerDayAgenda: document.getElementById("plannerDayAgenda"),
     plannerNotesList: document.getElementById("plannerNotesList"),
+    installPrompt: document.getElementById("installPrompt"),
+    installBtn: document.getElementById("installBtn"),
+    dismissInstallBtn: document.getElementById("dismissInstallBtn"),
     iosInstallModal: document.getElementById("iosInstallModal"),
     iosInstallCloseBtn: document.getElementById("iosInstallCloseBtn"),
     dayInfoModal: document.getElementById("dayInfoModal"),
@@ -230,7 +229,10 @@
     dayInfoModalContent: document.getElementById("dayInfoModalContent"),
     dayInfoModalCloseBtn: document.getElementById("dayInfoModalCloseBtn"),
     todayDate: document.getElementById("todayDate"), // This element does not exist in mobile.html
-    clearAllBtn: document.getElementById("clearAllBtn")
+    clearAllBtn: document.getElementById("clearAllBtn"),
+    connectionLock: document.getElementById("connectionLock"),
+    connectionUnlockBtn: document.getElementById("connectionUnlockBtn"),
+    connectionLockText: document.getElementById("connectionLockText")
   };
 
   function fixPolishText(value) {
@@ -319,6 +321,72 @@
     });
   }
 
+  function fetchWithTimeout(resource, options = {}) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    const merged = { ...options, signal: controller.signal };
+    return fetch(resource, merged).finally(() => clearTimeout(id));
+  }
+
+  function setConnectionStatus(text) {
+    const value = String(text || "");
+    const el = document.getElementById("connectionStatus");
+    if (el) {
+      el.textContent = value;
+    }
+
+    const dot = document.getElementById("connectionDot");
+    if (dot) {
+      dot.classList.remove("connection-dot--online", "connection-dot--connecting", "connection-dot--offline");
+      const lower = value.toLowerCase();
+      if (lower === "offline") dot.classList.add("connection-dot--offline");
+      else if (lower === "sync..." || lower === "connecting") dot.classList.add("connection-dot--connecting");
+      else dot.classList.add("connection-dot--online");
+    }
+
+    if (value.toLowerCase() === "offline") {
+      showConnectionLock("Brak polaczenia. Aplikacja zablokowana dla prywatnosci.");
+    } else {
+      hideConnectionLock();
+    }
+  }
+
+  function isNetworkError(error) {
+    if (!error) return false;
+    const msg = String(error.message || "");
+    return msg.includes("Failed to fetch") || error.status === 0 || error.code === "ERR_NETWORK";
+  }
+
+  function formatPlannerError(error) {
+    if (!error) return "Blad polaczenia z plannerem.";
+    const msg = String(error.message || "");
+    if (msg.toLowerCase().includes("workflow_planner_notes") && msg.toLowerCase().includes("does not exist")) {
+      return "Brak tabeli workflow_planner_notes. Uruchom SQL planera w Supabase.";
+    }
+    if (String(error.code || "") === "42P01") {
+      return "Brak tabeli workflow_planner_notes. Uruchom SQL planera w Supabase.";
+    }
+    if (error.status === 401 || error.status === 403 || msg.toLowerCase().includes("permission")) {
+      return "Brak dostepu RLS do workflow_planner_notes. Sprawdz policy w Supabase.";
+    }
+    return `Blad SQL: ${msg || "nieznany"}`;
+  }
+
+  function showConnectionLock(message) {
+    if (elements.connectionLock) {
+      elements.connectionLock.hidden = false;
+    }
+    if (elements.connectionLockText) {
+      elements.connectionLockText.textContent = String(message || "Aplikacja zablokowana.");
+    }
+  }
+
+  function hideConnectionLock() {
+    if (elements.connectionLock) {
+      elements.connectionLock.hidden = true;
+    }
+  }
+
   async function init() {
     applyRuntimeMode();
     if (typeof window.alert === "function") {
@@ -326,10 +394,10 @@
       window.alert = (msg) => originalAlert(fixPolishText(String(msg)));
     }
     normalizeUiPolish();
-    setupIosMetaTags();
-    ensureIosModalExists();
     bindEvents();
+    listenForInstallPrompt();
     await initAuth();
+    void runReconnectSequence("startup");
     loadEntries();
     loadProfileState();
     await loadPlannerNotes();
@@ -347,7 +415,6 @@
     startEntranceAnimations();
     await loadCloudUserData();
     await loadPlannerNotes(true);
-    await renderLeaderboard(true);
     render();
     normalizeUiPolish();
   }
@@ -400,54 +467,145 @@
     }
 
     try {
-      authClient = window.supabase.createClient(url, anonKey);
+      authClient = window.supabase.createClient(url, anonKey, {
+        global: { fetch: fetchWithTimeout }
+      });
+      setConnectionStatus("connecting");
+      attachConnectivityHandlers();
       const sessionResult = await authClient.auth.getSession();
       authUser = sessionResult?.data?.session?.user || null;
       if (authUser) {
-        setActiveUserId(`sb_${authUser.id}`);
-        updateAuthStatus(`Zalogowano: ${authUser.email || "konto"}`);
-        setAuthGate(false);
+        handleSignedIn(authUser);
       } else {
-        updateAuthStatus("Zaloguj si? emailem i has?em");
-        setAuthGate(true);
+        handleSignedOut("Zaloguj sie emailem i haslem");
       }
 
       authClient.auth.onAuthStateChange((_event, session) => {
-        const wasLoggedIn = !!authUser;
         authUser = session?.user || null;
         if (authUser) {
-          if (!wasLoggedIn) playLoginSound();
-          setActiveUserId(`sb_${authUser.id}`);
-          updateAuthStatus(`Zalogowano: ${authUser.email || "konto"}`);
-          setAuthGate(false);
-          lastKnownLevel = null;
-          loadEntries();
-          loadProfileState();
-          renderActiveUser();
-          render();
-          loadPlannerNotes(true).then(render);
-          loadCloudUserData().then(render);
-          void renderLeaderboard(true);
+          handleSignedIn(authUser);
           return;
         }
-        if (wasLoggedIn) playLogoutSound();
-        setActiveUserId("guest_local");
-        updateAuthStatus("Wylogowano");
-        setAuthGate(true);
-        lastKnownLevel = null;
-        loadEntries();
-        loadProfileState();
-        leaderboardRows = [];
-        renderActiveUser();
-        loadPlannerNotes().then(render);
-        render();
-        void renderLeaderboard(true);
+        handleSignedOut("Wylogowano");
       });
     } catch {
       authClient = null;
       authUser = null;
-      updateAuthStatus("Tryb lokalny (offline) - b??d po??czenia z Supabase");
+      updateAuthStatus("Tryb lokalny (offline) - blad polaczenia z Supabase");
+      setConnectionStatus("Offline");
     }
+  }
+
+  function handleSignedIn(user) {
+    if (!user) return;
+    setActiveUserId(`sb_${user.id}`);
+    updateAuthStatus(`Zalogowano: ${user.email || "konto"}`);
+    setAuthGate(false);
+    setConnectionStatus("");
+    hideConnectionLock();
+    lastKnownLevel = null;
+    loadEntries();
+    loadProfileState();
+    renderActiveUser();
+    render();
+    loadPlannerNotes(true).then(render);
+    loadCloudUserData().then(render);
+  }
+
+  function handleSignedOut(message) {
+    setActiveUserId("guest_local");
+    updateAuthStatus(message || "Wylogowano");
+    setAuthGate(true);
+    lastKnownLevel = null;
+    hideConnectionLock();
+    loadEntries();
+    loadProfileState();
+    renderActiveUser();
+    loadPlannerNotes().then(render);
+    render();
+  }
+
+  function attachConnectivityHandlers() {
+    if (connectivityHandlersAttached) return;
+    connectivityHandlersAttached = true;
+
+    window.addEventListener("online", () => {
+      setConnectionStatus("connecting");
+      void runReconnectSequence("online");
+    });
+
+    window.addEventListener("offline", () => {
+      setConnectionStatus("Offline");
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) {
+        void refreshSession("visible");
+      }
+    });
+
+    window.addEventListener("pageshow", () => {
+      void runReconnectSequence("pageshow");
+    });
+
+    setInterval(() => {
+      if (!authClient) return;
+      void refreshSession("poll");
+    }, CONNECTIVITY_POLL_MS);
+  }
+
+  async function refreshSession(reason) {
+    if (!authClient || refreshInFlight) return;
+    refreshInFlight = true;
+    if (!navigator.onLine) {
+      setConnectionStatus("Offline");
+      refreshInFlight = false;
+      return false;
+    }
+    setConnectionStatus("connecting");
+    try {
+      const sessionResult = await authClient.auth.getSession();
+      const user = sessionResult?.data?.session?.user || null;
+      if (user) {
+        handleSignedIn(user);
+        return true;
+      } else {
+        if (reason === "poll") {
+          // Avoid forcing logout on background poll
+          setConnectionStatus("");
+          return true;
+        } else {
+          handleSignedOut("Zaloguj sie emailem i haslem");
+        }
+      }
+    } catch {
+      setConnectionStatus("Offline");
+      return false;
+    } finally {
+      refreshInFlight = false;
+    }
+    return false;
+  }
+
+  async function runReconnectSequence(reason) {
+    if (reconnectInFlight || !authClient) return;
+    reconnectInFlight = true;
+    if (!navigator.onLine) {
+      setConnectionStatus("Offline");
+      reconnectInFlight = false;
+      return;
+    }
+    setConnectionStatus("connecting");
+    for (let i = 0; i < RECONNECT_ATTEMPTS; i += 1) {
+      const ok = await refreshSession(reason);
+      if (ok) {
+        reconnectInFlight = false;
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, RECONNECT_DELAY_MS));
+    }
+    setConnectionStatus("Offline");
+    reconnectInFlight = false;
   }
 
   function updateAuthStatus(text) {
@@ -468,12 +626,6 @@
     }
     if (locked && elements.accountEditor) {
       elements.accountEditor.hidden = true;
-    }
-    if (locked && elements.leaderboardBody) {
-      elements.leaderboardBody.innerHTML = "";
-      if (elements.leaderboardStatus) {
-        elements.leaderboardStatus.textContent = "Zaloguj si?, aby zobaczy? ranking.";
-      }
     }
     document.body.classList.toggle("auth-locked", locked);
   }
@@ -541,7 +693,6 @@
     return {
       unlockedAchievementIds: Array.isArray(raw.unlockedAchievementIds) ? raw.unlockedAchievementIds : [],
       bonusExp: Number.isFinite(raw.bonusExp) ? raw.bonusExp : 0,
-      hourlyRate: Number.isFinite(raw.hourlyRate) && raw.hourlyRate > 0 ? raw.hourlyRate : MINIMUM_HOURLY_RATE,
       taxReliefUnder26: Boolean(raw.taxReliefUnder26),
       vacationDays: Array.isArray(raw.vacationDays)
         ? raw.vacationDays.filter(isIsoDateLike).sort()
@@ -696,9 +847,6 @@
     if (elements.accountAvatarUrlInput) {
       elements.accountAvatarUrlInput.value = getCurrentAvatarUrl();
     }
-    if (elements.accountHourlyRateInput) {
-      elements.accountHourlyRateInput.value = profileState.hourlyRate > 0 ? profileState.hourlyRate.toFixed(2) : "";
-    }
     if (elements.accountAvatarFileInput) {
       elements.accountAvatarFileInput.value = "";
     }
@@ -735,61 +883,39 @@
   }
 
   async function handleAccountSave() {
-    if (!authClient || !authUser || !elements.accountSaveBtn) {
+    if (!authClient || !authUser) {
       return;
     }
-
-    const saveButton = elements.accountSaveBtn;
-    const originalButtonText = saveButton.textContent;
-    saveButton.disabled = true;
-    saveButton.textContent = "Zapisywanie...";
-
-    try {
-      const nextNick = String(elements.accountNicknameInput?.value || "").trim().slice(0, 24);
-      const nextAvatarUrl = String(elements.accountAvatarUrlInput?.value || "").trim();
-      const nextTaxReliefUnder26 = Boolean(elements.accountUnder26Toggle?.checked);
-      const nextHourlyRate = Number(elements.accountHourlyRateInput?.value || 0);
-      if (!nextNick) {
-        alert("Nickname nie mo?e by? pusty.");
-        return;
-      }
-      if (nextAvatarUrl && !(nextAvatarUrl.startsWith("https://") || nextAvatarUrl.startsWith("http://") || nextAvatarUrl.startsWith("data:image/"))) {
-        alert("Podaj poprawny URL zdjecia lub wybierz plik.");
-        return;
-      }
-      if (nextHourlyRate < 0) {
-        alert("Stawka godzinowa nie może być ujemna.");
-        return;
-      }
-      const { error } = await authClient.auth.updateUser({
-        data: {
-          ...(authUser.user_metadata || {}),
-          nickname: nextNick,
-          avatar_url: nextAvatarUrl
-        }
-      });
-      if (error) {
-        alert("Nie uda?o si? zapisa? danych konta.");
-        return;
-      }
-      const { data } = await authClient.auth.getUser();
-      authUser = data?.user || authUser;
-      profileState.taxReliefUnder26 = nextTaxReliefUnder26;
-      profileState.hourlyRate = nextHourlyRate > 0 ? nextHourlyRate : MINIMUM_HOURLY_RATE;
-      persistProfileState();
-      renderActiveUser();
-      render();
-      closeAccountEditor();
-      updateAuthStatus(`Zapisano profil: ${nextNick}`);
-    } catch (err) {
-      console.error("Error saving account:", err);
-      alert("Wystąpił nieoczekiwany błąd podczas zapisywania. Spróbuj ponownie.");
-    } finally {
-      if (saveButton) {
-        saveButton.disabled = false;
-        saveButton.textContent = originalButtonText;
-      }
+    const nextNick = String(elements.accountNicknameInput?.value || "").trim().slice(0, 24);
+    const nextAvatarUrl = String(elements.accountAvatarUrlInput?.value || "").trim();
+    const nextTaxReliefUnder26 = Boolean(elements.accountUnder26Toggle?.checked);
+    if (!nextNick) {
+      alert("Nickname nie mo?e by? pusty.");
+      return;
     }
+    if (nextAvatarUrl && !(nextAvatarUrl.startsWith("https://") || nextAvatarUrl.startsWith("http://") || nextAvatarUrl.startsWith("data:image/"))) {
+      alert("Podaj poprawny URL zdjecia lub wybierz plik.");
+      return;
+    }
+    const { error } = await authClient.auth.updateUser({
+      data: {
+        ...(authUser.user_metadata || {}),
+        nickname: nextNick,
+        avatar_url: nextAvatarUrl
+      }
+    });
+    if (error) {
+      alert("Nie uda?o si? zapisa? danych konta.");
+      return;
+    }
+    const { data } = await authClient.auth.getUser();
+    authUser = data?.user || authUser;
+    profileState.taxReliefUnder26 = nextTaxReliefUnder26;
+    persistProfileState();
+    renderActiveUser();
+    render();
+    closeAccountEditor();
+    updateAuthStatus(`Zapisano profil: ${nextNick}`);
   }
 
   function handleAvatarFileChange(event) {
@@ -814,7 +940,6 @@
 
   async function handleAuthSignOut() {
     if (!authClient) {
-      // offline mode logout
       setActiveUserId("guest_local");
       authUser = null;
       updateAuthStatus("Tryb lokalny (offline)");
@@ -822,57 +947,32 @@
       render();
       return;
     }
-    try {
-      await authClient.auth.signOut();
-    } catch (err) {
-      console.error("signOut error", err);
-    }
-
-    // make sure UI resets even if auth state change event doesn't fire
-    const wasLoggedIn = !!authUser;
-    authUser = null;
-    if (wasLoggedIn) playLogoutSound();
-    setActiveUserId("guest_local");
-    updateAuthStatus("Wylogowano");
-    setAuthGate(true);
-    lastKnownLevel = null;
-    loadEntries();
-    loadProfileState();
-    leaderboardRows = [];
-    renderActiveUser();
-    loadPlannerNotes().then(render);
-    render();
-    void renderLeaderboard(true);
+    await authClient.auth.signOut();
   }
 
   async function loadCloudUserData() {
     if (!authClient || !authUser) {
       return;
     }
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
-      const { data, error } = await authClient.from(cloudTable).select("payload").eq("user_id", authUser.id).maybeSingle();
-      clearTimeout(timeoutId);
-      if (controller.signal.aborted) {
-        console.warn("loadCloudUserData timed out");
-        return;
+    const { data, error } = await authClient.from(cloudTable).select("payload").eq("user_id", authUser.id).maybeSingle();
+    if (error) {
+      if (isNetworkError(error)) {
+        setConnectionStatus("Offline");
       }
-      if (error || !data || !data.payload || typeof data.payload !== "object") {
-        return;
-      }
-
-      const payload = data.payload;
-      entries = Array.isArray(payload.entries) ? payload.entries.map(normalizeEntry) : [];
-      if (payload.profileState && typeof payload.profileState === "object") {
-        profileState = createProfileState(payload.profileState);
-      }
-
-      localStorage.setItem(getEntriesStorageKey(), JSON.stringify(entries));
-      localStorage.setItem(getProfileStateStorageKey(), JSON.stringify(profileState));
-    } catch (err) {
-      console.error("loadCloudUserData error", err);
+      return;
     }
+    if (!data || !data.payload || typeof data.payload !== "object") {
+      return;
+    }
+
+    const payload = data.payload;
+    entries = Array.isArray(payload.entries) ? payload.entries.map(normalizeEntry) : [];
+    if (payload.profileState && typeof payload.profileState === "object") {
+      profileState = createProfileState(payload.profileState);
+    }
+
+    localStorage.setItem(getEntriesStorageKey(), JSON.stringify(entries));
+    localStorage.setItem(getProfileStateStorageKey(), JSON.stringify(profileState));
   }
 
   function scheduleCloudSync() {
@@ -902,122 +1002,6 @@
     );
   }
 
-  function scheduleLeaderboardSync(payload) {
-    if (!authClient || !authUser) {
-      return;
-    }
-    if (leaderboardSyncTimerId) {
-      clearTimeout(leaderboardSyncTimerId);
-    }
-    leaderboardSyncTimerId = setTimeout(() => {
-      leaderboardSyncTimerId = null;
-      void persistLeaderboardSelf(payload);
-    }, 900);
-  }
-
-  async function persistLeaderboardSelf(payload) {
-    if (!authClient || !authUser || !payload) {
-      return;
-    }
-    const safePayload = {
-      user_id: authUser.id,
-      nickname: String(payload.nickname || "U?ytkownik").slice(0, 48),
-      level: Math.max(1, Number(payload.level) || 1),
-      rank: String(payload.rank || "Bronze").slice(0, 48),
-      rank_level: String(payload.rankLevel || "Bronze I").slice(0, 64),
-      total_exp: Math.max(0, Math.floor(Number(payload.totalExp) || 0)),
-      total_hours: Number(Math.max(0, Number(payload.totalHours) || 0).toFixed(2)),
-      updated_at: new Date().toISOString()
-    };
-    await authClient.from(leaderboardTable).upsert(safePayload, { onConflict: "user_id" });
-    void renderLeaderboard(true);
-  }
-
-  async function renderLeaderboard(force = false) {
-    if (!elements.leaderboardBody || !elements.leaderboardStatus) {
-      return;
-    }
-    if (!authClient || !authUser) {
-      elements.leaderboardStatus.textContent = "Zaloguj si?, aby zobaczy? ranking.";
-      elements.leaderboardBody.innerHTML = "";
-      leaderboardRows = [];
-      renderTeamUsers();
-      return;
-    }
-    const now = Date.now();
-    if (!force && now - leaderboardLastFetchAt < 30000) {
-      return;
-    }
-    if (leaderboardLoading) {
-      return;
-    }
-
-    leaderboardLoading = true;
-    elements.leaderboardStatus.textContent = "Od?wie?anie rankingu...";
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
-      const { data, error } = await authClient
-        .from(leaderboardTable)
-        .select("user_id,nickname,level,rank,rank_level,total_exp,total_hours")
-        .order("total_exp", { ascending: false })
-        .order("level", { ascending: false })
-        .order("updated_at", { ascending: true })
-        .limit(30);
-      clearTimeout(timeoutId);
-      if (controller.signal.aborted) {
-        console.warn("renderLeaderboard timed out");
-        elements.leaderboardStatus.textContent = "Brak dostępu do rankingu. Uruchom SQL dla leaderboardu.";
-        leaderboardRows = [];
-        renderTeamUsers();
-        return;
-      }
-
-      if (error || !Array.isArray(data)) {
-        elements.leaderboardStatus.textContent = "Brak dost?pu do rankingu. Uruchom SQL dla leaderboardu.";
-        leaderboardRows = [];
-        renderTeamUsers();
-        return;
-      }
-
-      leaderboardRows = data;
-
-      if (data.length === 0) {
-        elements.leaderboardStatus.textContent = "Brak danych w rankingu.";
-        elements.leaderboardBody.innerHTML = "";
-        renderTeamUsers();
-        return;
-      }
-
-      elements.leaderboardBody.innerHTML = data
-        .map((row, index) => {
-          const isSelf = row.user_id === authUser.id;
-          const cls = isSelf ? "leaderboard-row is-self" : "leaderboard-row";
-          const rankName = String(row.rank || "Bronze");
-          const rankLabel = String(row.rank_level || rankName);
-          const rankSlug = getRankSlug(rankName);
-          return `
-            <tr class="${cls}">
-              <td>${index + 1}</td>
-              <td>${escapeHtml(String(row.nickname || "U?ytkownik"))}</td>
-              <td>${Number(row.level) || 1}</td>
-              <td><span class="rank-edge-pill rank-edge-pill--${rankSlug}">${escapeHtml(rankLabel)}</span></td>
-              <td>${Math.max(0, Math.floor(Number(row.total_exp) || 0))}</td>
-              <td>${Number(row.total_hours || 0).toFixed(2)} h</td>
-            </tr>
-          `;
-        })
-        .join("");
-
-      elements.leaderboardStatus.textContent = `Ranking aktywny: ${data.length} osob`;
-      leaderboardLastFetchAt = now;
-      renderTeamUsers();
-    } finally {
-      leaderboardLoading = false;
-    }
-  }
-
-  function renderTeamUsers() {}
 
   function setDefaults(preferredDateIso) {
     const today = new Date();
@@ -1026,12 +1010,14 @@
     const [selY, selM, selD] = selectedIso.split("-").map(Number);
     const selectedDate = new Date(selY, selM - 1, selD);
     calendarViewDate = new Date(today.getFullYear(), today.getMonth(), 1);
-    elements.todayDate.textContent = today.toLocaleDateString("pl-PL", {
-      weekday: "long",
-      day: "2-digit",
-      month: "long",
-      year: "numeric"
-    });
+    if (elements.todayDate) {
+      elements.todayDate.textContent = today.toLocaleDateString("pl-PL", {
+        weekday: "long",
+        day: "2-digit",
+        month: "long",
+        year: "numeric"
+      });
+    }
     if (elements.workDate) {
       elements.workDate.value = selectedIso;
     }
@@ -1187,6 +1173,33 @@
         void handleAuthSignOut();
       });
     }
+    if (elements.installBtn) {
+      elements.installBtn.addEventListener("click", handleInstallPrompt);
+    }
+    if (elements.connectionUnlockBtn) {
+      elements.connectionUnlockBtn.addEventListener("click", () => {
+        if (!navigator.onLine) {
+          showConnectionLock("Brak polaczenia. Aplikacja zablokowana dla prywatnosci.");
+          setConnectionStatus("Offline");
+          return;
+        }
+        showConnectionLock("Sprawdzanie polaczenia...");
+        setConnectionStatus("connecting");
+        void runReconnectSequence("manual");
+      });
+    }
+    if (elements.dismissInstallBtn) {
+      elements.dismissInstallBtn.addEventListener("click", () => {
+        if (elements.installPrompt) {
+          elements.installPrompt.hidden = true;
+          // For iOS, remember the dismissal so we don't show it again.
+          const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+          if (isIos) {
+            localStorage.setItem('quest_install_prompt_dismissed_ios', 'true');
+          }
+        }
+      });
+    }
     if (elements.iosInstallCloseBtn) {
       elements.iosInstallCloseBtn.addEventListener("click", () => {
         if (elements.iosInstallModal) elements.iosInstallModal.hidden = true;
@@ -1250,12 +1263,6 @@
     }
     if (elements.calendarNextBtn) {
       elements.calendarNextBtn.addEventListener("click", () => shiftCalendarMonth(1));
-    }
-    if (elements.earningsPrevBtn) {
-      elements.earningsPrevBtn.addEventListener("click", () => shiftEarningsMonth(-1));
-    }
-    if (elements.earningsNextBtn) {
-      elements.earningsNextBtn.addEventListener("click", () => shiftEarningsMonth(1));
     }
     if (elements.calendarEventSaveBtn) {
       elements.calendarEventSaveBtn.addEventListener("click", handleSaveCalendarEvent);
@@ -1414,17 +1421,6 @@
   function shiftCalendarMonth(delta) {
     calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + delta, 1);
     renderMonthCalendar();
-  }
-
-  function shiftEarningsMonth(delta) {
-    const newDate = new Date(earningsViewDate.getFullYear(), earningsViewDate.getMonth() + delta, 1);
-    const today = new Date();
-    // Don't allow going into the future
-    if (newDate.getFullYear() > today.getFullYear() || (newDate.getFullYear() === today.getFullYear() && newDate.getMonth() > today.getMonth())) {
-      return;
-    }
-    earningsViewDate = newDate;
-    render();
   }
 
   function handleSaveCalendarEvent() {
@@ -1810,8 +1806,6 @@
     }
 
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
       const { data, error } = await authClient
         .from(plannerTable)
         .select("id,author_user_id,author_name,title,content,is_pinned,start_date,end_date,created_at,updated_at")
@@ -1819,24 +1813,16 @@
         .order("start_date", { ascending: true })
         .order("created_at", { ascending: false })
         .limit(160);
-      clearTimeout(timeoutId);
-      if (controller.signal.aborted) {
-        console.warn("loadPlannerNotes timed out");
-        if (forceRemote) {
-          updatePlannerStatus("Planer działa lokalnie. Aby współdzielić zadania z kalendarzem, uruchom zaktualizowany SQL planera w Supabase.");
-        } else {
-          updatePlannerStatus("Nie udało się pobrać wspólnego planera. Pokazuję lokalne zadania.");
-        }
-        renderPlannerNotes();
-        renderPlannerCalendar();
-        return;
-      }
 
       if (error || !Array.isArray(data)) {
-        if (forceRemote) {
-          updatePlannerStatus("Planer działa lokalnie. Aby współdzielić zadania z kalendarzem, uruchom zaktualizowany SQL planera w Supabase.");
+        const isNet = isNetworkError(error);
+        if (isNet) {
+          setConnectionStatus("Offline");
+          updatePlannerStatus("Brak polaczenia z Supabase. Pokazuję lokalne zadania.");
+        } else if (forceRemote) {
+          updatePlannerStatus(formatPlannerError(error));
         } else {
-          updatePlannerStatus("Nie udało się pobrać wspólnego planera. Pokazuję lokalne zadania.");
+          updatePlannerStatus("Nie udalo sie pobrac wspolnego planera. Pokazuje lokalne zadania.");
         }
         renderPlannerNotes();
         renderPlannerCalendar();
@@ -2371,7 +2357,7 @@
     if (elements.progressAvgHours) {
       elements.progressAvgHours.textContent = `${metrics.avgHours.toFixed(2)} h`;
     }
-    renderEarnings(earningsViewDate);
+    renderEarnings(metrics, todayIso);
 
     inactivityPenaltyState = getInactivityPenalty(todayIso);
     const baseExp = calculateExpFromMinutes(metrics.totalMinutes);
@@ -2397,15 +2383,6 @@
     const levelData = renderLevel(totalExp);
     const rankData = renderRank(levelData.level);
     renderAchievements(levelData.level, metrics);
-    scheduleLeaderboardSync({
-      nickname: getCurrentUserName(),
-      level: levelData.level,
-      rank: rankData.current.name,
-      rankLevel: `${rankData.current.name} ${rankData.subRankLabel}`,
-      totalExp,
-      totalHours: metrics.totalHours
-    });
-    void renderLeaderboard();
   }
 
   function renderLiveProgress() {
@@ -2498,72 +2475,25 @@
     };
   }
 
-  function getEarningsMetrics(forDate) {
-    const year = forDate.getFullYear();
-    const month = forDate.getMonth();
-    const firstDayOfMonth = new Date(year, month, 1);
-
-    let monthMinutes = 0;
-    let yearMinutes = 0;
-    let yearMinutesBeforeMonth = 0;
-
-    entries.forEach((entry) => {
-      const durationMinutes = getEntryDurationMinutes(entry);
-      const entryDate = parseEntryDate(entry.date);
-      if (!entryDate) {
-        return;
-      }
-
-      if (entryDate.getFullYear() === year) {
-        yearMinutes += durationMinutes;
-        if (entryDate.getMonth() === month) {
-          monthMinutes += durationMinutes;
-        } else if (entryDate < firstDayOfMonth) {
-          yearMinutesBeforeMonth += durationMinutes;
-        }
-      }
-    });
-
-    const yearToDateMinutes = monthMinutes + yearMinutesBeforeMonth;
-
-    return {
-      monthHours: monthMinutes / 60,
-      yearHours: yearMinutes / 60,
-      yearToDateHours: yearToDateMinutes / 60,
-      yearMinutesBeforeMonth: yearMinutesBeforeMonth
-    };
-  }
-
-  function renderEarnings(forDate) {
+  function renderEarnings(metrics, todayIso) {
     if (
-      !elements.earningsMonthGross || !elements.earningsMonthNet || !elements.earningsYearGross || !elements.earningsYearNet
+      !elements.earningsMonthGross ||
+      !elements.earningsMonthNet ||
+      !elements.earningsYearGross ||
+      !elements.earningsYearNet
     ) {
       return;
     }
 
-    const metrics = getEarningsMetrics(forDate);
-    const today = new Date();
-    const isCurrentMonth = forDate.getFullYear() === today.getFullYear() && forDate.getMonth() === today.getMonth();
-
-    if (elements.earningsMonthLabel) {
-      const label = forDate.toLocaleDateString("pl-PL", { month: "long", year: "numeric" });
-      elements.earningsMonthLabel.textContent = label.charAt(0).toUpperCase() + label.slice(1);
-    }
-
-    if (elements.earningsNextBtn) {
-      elements.earningsNextBtn.disabled = isCurrentMonth;
-    }
-
-    const hourlyRate = profileState.hourlyRate > 0 ? profileState.hourlyRate : MINIMUM_HOURLY_RATE;
-    const currentYear = String(forDate.getFullYear());
-    const monthGross = roundMoney(metrics.monthHours * hourlyRate);
-    const yearToDateGross = roundMoney(metrics.yearToDateHours * hourlyRate);
-    const yearGrossBeforeMonth = roundMoney((metrics.yearMinutesBeforeMonth / 60) * hourlyRate);
+    const currentYear = String(parseEntryDate(todayIso)?.getFullYear() || new Date().getFullYear());
+    const monthGross = roundMoney(metrics.monthHours * MINIMUM_HOURLY_RATE);
+    const yearGross = roundMoney(metrics.yearHours * MINIMUM_HOURLY_RATE);
+    const yearGrossBeforeMonth = roundMoney((metrics.yearMinutesBeforeMonth / 60) * MINIMUM_HOURLY_RATE);
     const monthEstimate = estimateAfterPit(monthGross, yearGrossBeforeMonth);
-    const yearToDateEstimate = estimateAfterPit(yearToDateGross, 0);
+    const yearEstimate = estimateAfterPit(yearGross, 0);
 
     if (elements.earningsRateBadge) {
-      elements.earningsRateBadge.textContent = `Stawka: ${formatCurrency(hourlyRate)} / h`;
+      elements.earningsRateBadge.textContent = `${formatCurrency(MINIMUM_HOURLY_RATE)} / h`;
     }
     if (elements.earningsModeLabel) {
       elements.earningsModeLabel.textContent = profileState.taxReliefUnder26
@@ -2573,15 +2503,14 @@
 
     elements.earningsMonthGross.textContent = formatCurrency(monthGross);
     elements.earningsMonthNet.textContent = formatCurrency(monthEstimate.afterPit);
-    elements.earningsYearGross.textContent = formatCurrency(yearToDateGross);
-    elements.earningsYearNet.textContent = formatCurrency(yearToDateEstimate.afterPit);
+    elements.earningsYearGross.textContent = formatCurrency(yearGross);
+    elements.earningsYearNet.textContent = formatCurrency(yearEstimate.afterPit);
 
     if (elements.earningsHint) {
-      const totalYearGross = roundMoney(metrics.yearHours * hourlyRate);
-      if (profileState.taxReliefUnder26 && totalYearGross > YOUTH_PIT_RELIEF_LIMIT) {
+      if (profileState.taxReliefUnder26 && yearGross > YOUTH_PIT_RELIEF_LIMIT) {
         elements.earningsHint.textContent = `Ulga <26 dla ${currentYear} została przekroczona po limicie ${formatCurrency(YOUTH_PIT_RELIEF_LIMIT)}. Nadwyżka liczona jest z uproszczonym PIT 12%.`;
       } else if (profileState.taxReliefUnder26) {
-        const remainingRelief = Math.max(0, YOUTH_PIT_RELIEF_LIMIT - totalYearGross);
+        const remainingRelief = Math.max(0, YOUTH_PIT_RELIEF_LIMIT - yearGross);
         elements.earningsHint.textContent = `Ulga <26 aktywna. W ${currentYear} zostało jeszcze około ${formatCurrency(remainingRelief)} limitu zwolnienia z PIT. Szacunek nie uwzględnia ZUS.`;
       } else {
         elements.earningsHint.textContent = "Szacunek po PIT odejmuje tylko uproszczone 12% podatku. Nie uwzględnia ZUS, kosztów uzyskania przychodu ani indywidualnych ulg.";
@@ -3030,28 +2959,11 @@
       return;
     }
 
-    // Sortujemy widoczne wpisy po dacie malejąco, aby grupowanie działało poprawnie
-    const visibleEntries = entries
-      .slice(0, MAX_RENDERED_ENTRIES)
-      .sort((a, b) => b.date.localeCompare(a.date));
+    const visibleEntries = entries.slice(0, MAX_RENDERED_ENTRIES);
 
-    let currentMonthLabel = "";
-
-    elements.list.innerHTML = visibleEntries
-      .map((entry) => {
-        let headerHtml = "";
-        const dateObj = parseEntryDate(entry.date);
-        if (dateObj) {
-          const label = dateObj.toLocaleDateString("pl-PL", { month: "long", year: "numeric" });
-          if (label !== currentMonthLabel) {
-            currentMonthLabel = label;
-            const capitalized = label.charAt(0).toUpperCase() + label.slice(1);
-            headerHtml = `<h4 class="entries-month-header">${capitalized}</h4>`;
-          }
-        }
-
-        return `
-            ${headerHtml}
+      elements.list.innerHTML = visibleEntries
+        .map(
+          (entry) => `
             <li class="entries-v3-item" data-entry-id="${entry.id}">
               <div class="entries-v3-main">
                 <div class="entries-v3-top">
@@ -3065,8 +2977,8 @@
                 <button type="button" class="entries-v3-remove" data-id="${entry.id}">Usuń</button>
               </div>
             </li>
-          `;
-      })
+          `
+      )
       .join("");
 
     if (entries.length > MAX_RENDERED_ENTRIES) {
@@ -3181,84 +3093,6 @@
     } catch (e) {
       // Ignore audio errors
     }
-  }
-
-  function playLoginSound() {
-    try {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContext) return;
-      const ctx = new AudioContext();
-      const now = ctx.currentTime;
-      
-      const playTone = (freq, startTime, duration) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(freq, startTime);
-        gain.gain.setValueAtTime(0.08, startTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(startTime);
-        osc.stop(startTime + duration);
-      };
-
-      playTone(440, now, 0.1);
-      playTone(880, now + 0.1, 0.15);
-    } catch (e) {
-      // Ignore audio errors
-    }
-  }
-
-  function playLogoutSound() {
-    try {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContext) return;
-      const ctx = new AudioContext();
-      const now = ctx.currentTime;
-      
-      const playTone = (freq, startTime, duration) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(freq, startTime);
-        gain.gain.setValueAtTime(0.08, startTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(startTime);
-        osc.stop(startTime + duration);
-      };
-
-      playTone(880, now, 0.1);
-      playTone(440, now + 0.1, 0.15);
-    } catch (e) {
-      // Ignore audio errors
-    }
-  }
-
-  function playTabSwitchSound() {
-    try {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContext) return;
-      const ctx = new AudioContext();
-      const now = ctx.currentTime;
-      
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(880, now);
-      
-      gain.gain.setValueAtTime(0.06, now);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
-      
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      
-      osc.start(now);
-      osc.stop(now + 0.08);
-    } catch (e) {}
   }
 
   function renderLevel(totalExp) {
@@ -3663,14 +3497,6 @@
 
   function switchView(view) {
     const activeView = ["main", "progress", "planner"].includes(view) ? view : "main";
-
-    const currentActiveButton = document.querySelector(".nav-item.nav-item--active");
-    const currentActiveView = currentActiveButton ? currentActiveButton.dataset.view : null;
-
-    if (activeView !== currentActiveView) {
-      playTabSwitchSound();
-    }
-
     elements.viewMain.classList.toggle("is-active", activeView === "main");
     elements.viewProgress.classList.toggle("is-active", activeView === "progress");
     if (elements.viewPlanner) {
@@ -3750,75 +3576,64 @@
     });
   }
 
-  function setupIosMetaTags() {
-    // Sprawdź czy to iOS
-    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    if (!isIos) return;
-
-    const head = document.head;
-
-    // 1. Viewport fit cover (dla notcha)
-    const viewport = document.querySelector('meta[name="viewport"]');
-    if (viewport && !viewport.content.includes('viewport-fit=cover')) {
-      viewport.content += ', viewport-fit=cover';
-    }
-
-    // 2. Meta tagi PWA dla iOS
-    const metaTags = [
-      { name: 'apple-mobile-web-app-capable', content: 'yes' },
-      { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' },
-      { name: 'apple-mobile-web-app-title', content: 'Quest' }
-    ];
-
-    metaTags.forEach(tag => {
-      if (!head.querySelector(`meta[name="${tag.name}"]`)) {
-        const meta = document.createElement('meta');
-        meta.name = tag.name;
-        meta.content = tag.content;
-        head.appendChild(meta);
+  function listenForInstallPrompt() {
+    // --- Logic for Android (and other browsers supporting beforeinstallprompt) ---
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      if (elements.installPrompt) {
+        elements.installPrompt.hidden = false;
       }
     });
 
-    // 3. Ikona dotykowa Apple
-    if (!head.querySelector('link[rel="apple-touch-icon"]')) {
-      const link = document.createElement('link');
-      link.rel = 'apple-touch-icon';
-      link.href = 'assets/apple-touch-icon.png';
-      head.appendChild(link);
+    window.addEventListener("appinstalled", () => {
+      if (elements.installPrompt) {
+        elements.installPrompt.hidden = true;
+      }
+      deferredInstallPrompt = null;
+    });
+
+    // --- Custom logic for iOS ---
+    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream; // Check for iOS device
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone; // Check if already installed (PWA mode)
+    const hasDismissedIosPrompt = localStorage.getItem('quest_install_prompt_dismissed_ios') === 'true';
+
+    // If it's iOS, not in standalone mode, and hasn't been dismissed before
+    if (isIos && !isStandalone && !hasDismissedIosPrompt && elements.installPrompt) {
+      // Show immediately
+      elements.installPrompt.hidden = false;
+      if (elements.installBtn) {
+        elements.installBtn.textContent = "Jak zainstalować?";
+        // For iOS, the dismiss button should also set the localStorage flag
+        if (elements.dismissInstallBtn) {
+          elements.dismissInstallBtn.addEventListener("click", () => {
+            localStorage.setItem('quest_install_prompt_dismissed_ios', 'true');
+          }, { once: true }); // Only need to set it once
+        }
+      }
     }
   }
 
-  function ensureIosModalExists() {
-    if (document.getElementById("iosInstallModal")) return;
+  async function handleInstallPrompt() {
+    if (elements.installPrompt) {
+      elements.installPrompt.hidden = true;
+    }
 
-    const modalHtml = `
-      <div class="md3-dialog">
-        <div class="md3-headline-small">Instalacja na iOS</div>
-        <div class="md3-body-medium text-secondary">Aplikacja Quest działa najlepiej jako aplikacja na ekranie głównym.</div>
-        
-        <div class="ios-instruction-step">
-          <div class="ios-icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg></div>
-          <div class="md3-body-medium">1. Kliknij przycisk "Udostępnij" na pasku nawigacji Safari.</div>
-        </div>
+    if (!deferredInstallPrompt) {
+      // Check if iOS to show the graphical guide
+      const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      if (isIos && elements.iosInstallModal) {
+        elements.iosInstallModal.hidden = false;
+      } else {
+        alert("Aby zainstalować aplikację, poszukaj opcji 'Zainstaluj aplikację' lub 'Dodaj do ekranu głównego' w menu przeglądarki.");
+      }
+      return;
+    }
 
-        <div class="ios-instruction-step">
-          <div class="ios-icon-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg></div>
-          <div class="md3-body-medium">2. Wybierz "Do ekranu początkowego" z listy opcji.</div>
-        </div>
-
-        <div class="flex-row justify-end"><button type="button" id="iosInstallCloseBtn" class="md3-btn md3-btn-text">Zamknij</button></div>
-      </div>`;
-
-    const modal = document.createElement("div");
-    modal.id = "iosInstallModal";
-    modal.className = "md3-dialog-overlay";
-    modal.hidden = true;
-    modal.innerHTML = modalHtml;
-    document.body.appendChild(modal);
-
-    // Aktualizuj referencje w obiekcie elements
-    elements.iosInstallModal = modal;
-    elements.iosInstallCloseBtn = document.getElementById("iosInstallCloseBtn");
+    deferredInstallPrompt.prompt();
+    const { outcome } = await deferredInstallPrompt.userChoice;
+    console.log(`User response to the install prompt: ${outcome}`);
+    deferredInstallPrompt = null;
   }
 
   return {

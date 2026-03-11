@@ -1,16 +1,19 @@
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-const CACHE_NAME = isIOS ? 'quest-mobile-cache-ios-v6' : 'quest-mobile-cache-v6';
+const CACHE_NAME = 'quest-mobile-cache-v26'; // Zwiększamy wersję cache
 const URLS_TO_CACHE = [
   './',
   './index.html',
-  './mobile.css',
+  './style.css', // Główny plik stylów z index.html
+  './manifest.json',
+  // Nowa architektura modułowa
+  './main.js',
   './Engin.js',
   './supabase.config.js',
-  './manifest.json',
-  './assets/apple-touch-icon.png',
-  './assets/icon-192x192.png',
-  './assets/icon-512x512.png',
-  './assets/icon-maskable-512x512.png',
+  // './config.js', // USUNIĘTE: Ten plik nie istnieje fizycznie (jest w window)
+  './api/supabase.js',
+  './cache/storage.js',
+  './app/sync.js',
+  './app/scheduler.js',
+  './ui/render.js?v=12',
   './assets/logo.jpg',
   // Ikony
   './icons/pause.svg',
@@ -38,8 +41,7 @@ const URLS_TO_CACHE = [
 
 // Instalacja Service Workera i buforowanie zasobów
 self.addEventListener('install', event => {
-  // Force the waiting service worker to become the active service worker.
-  self.skipWaiting();
+  self.skipWaiting(); // <--- KLUCZOWE: Wymuś natychmiastową aktywację nowego SW
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
@@ -51,41 +53,47 @@ self.addEventListener('install', event => {
 
 // Przechwytywanie żądań i serwowanie z pamięci podręcznej
 self.addEventListener('fetch', event => {
+  // 1. Ignoruj żądania inne niż GET
   if (event.request.method !== 'GET') {
+      return;
+  }
+
+  // 1.5. Dla nawigacji (index.html) użyj Network First, żeby nie łapać starego stanu na iOS
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
     return;
   }
 
-  if (isIOS) {
-    // Dla iOS, zawsze network-only, bez cache
-    return fetch(event.request).catch(() => {
-      // Fallback do cache jeśli offline
-      return caches.match(event.request);
-    });
-  }
-
-  const supabaseUrl = 'xmoidyumwzwulwysjikg.supabase.co';
-
-  // Jeśli żądanie jest do API Supabase, nie używaj Service Workera do cachowania.
-  // Zawsze próbuj połączyć się z siecią. To zapobiega problemom z przestarzałymi danymi.
-  if (event.request.url.includes(supabaseUrl)) {
-    // Nie wywołujemy event.respondWith(), co pozwala przeglądarce na normalne obsłużenie żądania.
-    // To jest strategia "tylko sieć" (network-only).
+  // 2. IGNORUJ żądania do API Supabase (niech idą prosto do sieci)
+  // Aplikacja (sync.js) sama zarządza danymi i trybem offline.
+  // Service Worker nie powinien cache'ować dynamicznych zapytań do bazy.
+  if (event.request.url.includes('supabase.co')) {
     return;
   }
 
-  // Dla zasobów aplikacji stosujemy strategię "Stale-While-Revalidate".
+  // 3. Dla reszty (pliki statyczne, JS, CSS, CDN bibliotek) - Cache First
   event.respondWith(
-    caches.open(CACHE_NAME).then(cache => {
-      return cache.match(event.request).then(response => {
-        const fetchPromise = fetch(event.request).then(networkResponse => {
-          if (networkResponse && networkResponse.status === 200) {
-            cache.put(event.request, networkResponse.clone());
-          }
-          return networkResponse;
-        });
-        return response || fetchPromise;
-      });
-    })
+    caches.match(event.request)
+      .then(cachedResponse => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return fetch(event.request)
+          .then(response => {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseClone));
+            return response;
+          });
+      })
+      .catch(() => caches.match(event.request))
   );
 });
 
@@ -93,12 +101,15 @@ self.addEventListener('fetch', event => {
 self.addEventListener('activate', event => {
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
-    caches.keys().then(cacheNames => Promise.all(
-      cacheNames.map(cacheName => {
-        if (!cacheWhitelist.includes(cacheName)) {
-          return caches.delete(cacheName);
-        }
-      })
-    )).then(() => self.clients.claim()) // Take control of all clients
+    Promise.all([
+      self.clients.claim(),
+      caches.keys().then(cacheNames => Promise.all(
+        cacheNames.map(cacheName => {
+          if (!cacheWhitelist.includes(cacheName)) {
+            return caches.delete(cacheName);
+          }
+        })
+      ))
+    ])
   );
 });

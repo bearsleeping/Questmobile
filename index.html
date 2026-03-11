@@ -2,15 +2,14 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#000000">
     <title>Quest Mobile</title>
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Quest">
-    <meta name="format-detection" content="telephone=no">
-    <meta name="apple-touch-fullscreen" content="yes">
     <!-- Ikony dla iOS (Add to Home Screen) -->
     <link rel="apple-touch-icon" href="assets/logo.jpg">
     <link rel="apple-touch-icon" sizes="152x152" href="assets/logo.jpg">
@@ -20,7 +19,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Roboto+Flex:opsz,wght@8..144,100..1000&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="mobile.css">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <!-- Hidden elements required by Engin.js to prevent errors -->
@@ -60,7 +59,10 @@
     <!-- Top Bar -->
     <header class="md3-top-app-bar">
         <div class="profile-section" id="editNicknameBtn"> <!-- Reusing ID for profile click -->
-            <div id="mainProfileAvatar" class="avatar-small">U</div>
+            <div class="profile-avatar-wrap">
+                <div id="mainProfileAvatar" class="avatar-small">U</div>
+                <span id="connectionDot" class="connection-dot connection-dot--offline" aria-label="Status polaczenia"></span>
+            </div>
             <div class="flex-col profile-info">
                 <span id="mainProfileName" class="md3-title-medium">Gość</span>
                 <div class="header-progress-track">
@@ -70,11 +72,12 @@
                     <span id="navUserLevel" class="md3-label-small text-secondary">Poziom 1</span>
                     <span class="md3-label-small text-secondary">•</span>
                     <span id="navUserRank" class="md3-label-small text-secondary">Bronze</span>
+                    <span id="connectionStatus" class="md3-label-small text-secondary" style="margin-left: 8px;"></span>
                 </div>
             </div>
         </div>
         <div class="actions">
-            <button id="topbarLogoutBtn" class="icon-btn" type="button" hidden>
+            <button id="topbarLogoutBtn" class="icon-btn" hidden>
                 <img src="icons/power.svg" alt="Wyloguj">
             </button>
         </div>
@@ -124,33 +127,27 @@
             <div class="md3-card mb-4" id="entryFormPanel">
                 <h3 class="md3-title-medium mb-3">Dodaj ręcznie</h3>
                 <form id="workForm" class="flex-col gap-3 width-full">
-                    <div class="flex-col gap-2">
-                        <span class="md3-label-large" style="margin-left: 16px; color: var(--md-sys-color-on-surface-variant);">Data</span>
-                        <div class="md3-text-field md3-text-field--no-label">
-                            <input id="workDateDisplayInput" type="text" placeholder=" " readonly style="cursor: pointer; position: absolute; inset: 0; opacity: 1; z-index: 1; background: transparent; border: none; padding: 0 16px; color: var(--md-sys-color-on-surface); font-family: inherit; font-size: 16px;">
-                            <input id="workDate" type="date" required style="position: absolute; inset: 0; opacity: 0; z-index: 2; cursor: pointer; width: 100%;">
-                            <div class="trailing-icon">
-                                <img src="icons/calendar.svg" alt="Kalendarz">
-                            </div>
+                    <div class="md3-text-field">
+                        <input id="workDateDisplayInput" type="text" placeholder=" " readonly style="cursor: pointer; position: absolute; inset: 0; opacity: 1; z-index: 1; background: transparent; border: none; padding: 20px 16px 4px 16px; color: var(--md-sys-color-on-surface); font-family: inherit; font-size: 16px;">
+                        <input id="workDate" type="date" required style="position: absolute; inset: 0; opacity: 0; z-index: 2; cursor: pointer; width: 100%;">
+                        <label>Data</label>
+                        <div class="trailing-icon">
+                            <img src="icons/calendar.svg" alt="Kalendarz">
                         </div>
                     </div>
                     <div class="flex-row gap-3">
-                        <div class="flex-col flex-1 gap-2">
-                            <span class="md3-label-large" style="margin-left: 16px; color: var(--md-sys-color-on-surface-variant);">Start</span>
-                            <div class="md3-text-field md3-text-field--no-label">
-                                <input id="startTime" type="time" placeholder=" " required style="cursor: pointer;">
-                                <div class="trailing-icon">
-                                    <img src="icons/clock.svg" alt="Zegar">
-                                </div>
+                        <div class="md3-text-field flex-1">
+                            <input id="startTime" type="time" placeholder=" " required style="cursor: pointer;">
+                            <label>Start</label>
+                            <div class="trailing-icon">
+                                <img src="icons/clock.svg" alt="Zegar">
                             </div>
                         </div>
-                        <div class="flex-col flex-1 gap-2">
-                            <span class="md3-label-large" style="margin-left: 16px; color: var(--md-sys-color-on-surface-variant);">Koniec</span>
-                            <div class="md3-text-field md3-text-field--no-label">
-                                <input id="endTime" type="time" placeholder=" " required style="cursor: pointer;">
-                                <div class="trailing-icon">
-                                    <img src="icons/clock.svg" alt="Zegar">
-                                </div>
+                        <div class="md3-text-field flex-1">
+                            <input id="endTime" type="time" placeholder=" " required style="cursor: pointer;">
+                            <label>Koniec</label>
+                            <div class="trailing-icon">
+                                <img src="icons/clock.svg" alt="Zegar">
                             </div>
                         </div>
                     </div>
@@ -258,27 +255,11 @@
                 <ul id="achievementsList" class="achievements-list-mobile mt-3"></ul>
             </div>
 
-            <div class="md3-card">
-                <h3 class="md3-title-medium mb-2">Ranking</h3>
-                <p id="leaderboardStatus" class="md3-body-small text-secondary">...</p>
-                <table class="leaderboard-table width-full">
-                    <tbody id="leaderboardBody"></tbody>
-                </table>
-            </div>
-
             <!-- Earnings Section -->
             <div class="md3-card mt-4">
                 <div class="flex-between mb-3">
                     <h3 class="md3-title-medium">Zarobki</h3>
-                    <div class="flex-row gap-2 align-center">
-                        <button id="earningsPrevBtn" class="icon-btn-small">
-                            <img src="icons/arrow-left.svg" alt="Poprzedni miesiąc">
-                        </button>
-                        <span id="earningsMonthLabel" class="md3-title-medium badge" style="min-width: 120px; text-align: center;">...</span>
-                        <button id="earningsNextBtn" class="icon-btn-small">
-                            <img src="icons/arrow-right.svg" alt="Następny miesiąc">
-                        </button>
-                    </div>
+                    <span id="earningsRateBadge" class="md3-label-small badge">...</span>
                 </div>
                 <div class="earnings-grid">
                     <div class="stat-chip align-start">
@@ -286,20 +267,19 @@
                         <strong id="earningsMonthGross">0 PLN</strong>
                     </div>
                     <div class="stat-chip align-start">
-                        <span class="label">Miesiąc (na rękę)</span>
+                        <span class="label">Miesiąc (Netto)</span>
                         <strong id="earningsMonthNet">0 PLN</strong>
                     </div>
                     <div class="stat-chip align-start">
-                        <span class="label">Roczne (brutto)</span>
+                        <span class="label">Rok (Brutto)</span>
                         <strong id="earningsYearGross">0 PLN</strong>
                     </div>
                     <div class="stat-chip align-start">
-                        <span class="label">Roczne (Netto)</span>
+                        <span class="label">Rok (Netto)</span>
                         <strong id="earningsYearNet">0 PLN</strong>
                     </div>
                 </div>
                 <p id="earningsHint" class="md3-body-small text-secondary mt-3 opacity-80">Szacunek uproszczony.</p>
-                <p id="earningsRateBadge" class="md3-label-small text-secondary mt-2 text-center" style="font-size: 10px;">Stawka: ...</p>
                 <span id="earningsModeLabel" hidden></span>
             </div>
             
@@ -382,6 +362,23 @@
         </div>
     </main>
 
+    <!-- Install Prompt -->
+    <div id="installPrompt" class="install-prompt" hidden>
+        <div class="install-prompt__content">
+            <img src="assets/logo.jpg" alt="Quest Logo" class="install-prompt__icon">
+            <div class="install-prompt__text">
+                <strong>Zainstaluj aplikację Quest</strong>
+                <span>Dodaj do ekranu głównego dla szybszego dostępu.</span>
+            </div>
+        </div>
+        <div class="install-prompt__actions">
+            <button id="installBtn" class="md3-btn md3-btn-filled">Zainstaluj</button>
+            <button id="dismissInstallBtn" class="icon-btn-small" aria-label="Zamknij">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+        </div>
+    </div>
+
     <!-- Bottom Navigation -->
     <nav class="md3-navigation-bar">
         <button class="nav-item" data-view="progress">
@@ -427,11 +424,6 @@
                 <label>Nazwa</label>
             </div>
 
-            <div class="md3-text-field width-full">
-                <input id="accountHourlyRateInput" type="number" placeholder=" " step="0.01" min="0">
-                <label>Stawka godzinowa (Brutto, PLN)</label>
-            </div>
-
             <div class="account-setting">
                 <div class="account-setting__text">
                     <strong>Ulga &lt; 26 lat</strong>
@@ -445,8 +437,12 @@
             <input id="accountAvatarUrlInput" type="hidden">
 
             <div class="flex-row gap-2 justify-end">
-                <button id="accountCancelBtn" class="md3-btn md3-btn-text">Zamknij</button>
-                <button id="accountSaveBtn" class="md3-btn md3-btn-filled">Zapisz</button>
+                <button id="accountCancelBtn" class="md3-btn md3-btn-text" aria-label="Anuluj">
+                    <img src="icons/cross.svg" alt="Anuluj" style="width: 20px; height: 20px; filter: brightness(0) invert(1);">
+                </button>
+                <button id="accountSaveBtn" class="md3-btn md3-btn-filled" aria-label="Zapisz">
+                    <img src="icons/save.svg" alt="Zapisz" style="width: 20px; height: 20px; filter: none;">
+                </button>
             </div>
         </div>
     </div>
@@ -545,15 +541,41 @@
     <span id="userExp" hidden></span>
     <span id="navProgressMeta" hidden></span>
 
+    <!-- Connection Lock Overlay -->
+    <div id="connectionLock" class="connection-lock" hidden>
+        <div class="connection-lock__content">
+            <div class="icon-brand mb-3" style="background: rgba(255,255,255,0.08);">Q</div>
+            <strong class="md3-title-medium">Aplikacja zablokowana</strong>
+            <p id="connectionLockText" class="md3-body-small text-secondary">Dla prywatnosci. Brak polaczenia.</p>
+            <button id="connectionUnlockBtn" class="md3-btn md3-btn-filled">Odblokuj</button>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase.config.js"></script>
     <script src="Engin.js"></script>
-
+    <!-- <script type="module" src="main.js"></script> -->
     <script>
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-      if ('serviceWorker' in navigator && !isIOS) {
+      // iOS PWA can freeze when restored from bfcache. Force a clean reload.
+      window.addEventListener('pageshow', (event) => {
+        const nav = performance.getEntriesByType('navigation')[0];
+        const isBackForward = nav && nav.type === 'back_forward';
+        if (event.persisted || isBackForward) {
+          window.location.reload();
+        }
+      });
+
+      const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js').then(registration => {
+          if (isIos) {
+            // iOS PWA has unreliable caching; disable SW to avoid blocked Supabase connections.
+            navigator.serviceWorker.getRegistrations().then(regs => {
+              regs.forEach(reg => reg.unregister());
+            });
+            return;
+          }
+          navigator.serviceWorker.register('./sw.js', { scope: './' }).then(registration => {
             console.log('ServiceWorker registration successful with scope: ', registration.scope);
           }, err => {
             console.log('ServiceWorker registration failed: ', err);
