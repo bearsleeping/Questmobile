@@ -915,35 +915,58 @@ input, textarea {
   transform: scale(1);
 }
 
-.connection-lock {
+.ios-diag-panel {
   position: fixed;
-  inset: 0;
-  z-index: 220;
+  right: 12px;
+  bottom: calc(90px + env(safe-area-inset-bottom));
+  width: min(360px, 92vw);
+  max-height: 60vh;
+  z-index: 210;
+  background: rgba(12, 12, 14, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 12px;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(8px);
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
 }
 
-.connection-lock[hidden] {
+.ios-diag-panel[hidden] {
   display: none !important;
 }
 
-.connection-lock__content {
-  width: min(320px, 88vw);
-  padding: 24px;
-  border-radius: 20px;
-  text-align: center;
-  background: rgba(16, 16, 16, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+.ios-diag-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
-.connection-lock__content .md3-btn {
-  width: 100%;
-  margin-top: 16px;
+.ios-diag-text {
+  margin: 0;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--md-sys-color-on-surface);
+  font-size: 11px;
+  line-height: 1.35;
+  max-height: 38vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
+
+.ios-diag-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.ios-diag-actions .md3-btn {
+  flex: 1;
+}
+
 .avatar-large {
   width: 80px; height: 80px; border-radius: 50%;
   background-color: var(--md-sys-color-tertiary-container);

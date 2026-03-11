@@ -77,6 +77,7 @@
   let connectivityHandlersAttached = false;
   let refreshInFlight = false;
   let reconnectInFlight = false;
+  let lastDiag = {};
   let profileState = {
     unlockedAchievementIds: [],
     bonusExp: 0,
@@ -229,10 +230,7 @@
     dayInfoModalContent: document.getElementById("dayInfoModalContent"),
     dayInfoModalCloseBtn: document.getElementById("dayInfoModalCloseBtn"),
     todayDate: document.getElementById("todayDate"), // This element does not exist in mobile.html
-    clearAllBtn: document.getElementById("clearAllBtn"),
-    connectionLock: document.getElementById("connectionLock"),
-    connectionUnlockBtn: document.getElementById("connectionUnlockBtn"),
-    connectionLockText: document.getElementById("connectionLockText")
+    clearAllBtn: document.getElementById("clearAllBtn")
   };
 
   function fixPolishText(value) {
@@ -328,6 +326,30 @@
     return fetch(resource, merged).finally(() => clearTimeout(id));
   }
 
+  function updateIosDiag() {
+    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (!isIos) return;
+    const panel = document.getElementById("iosDiagPanel");
+    const text = document.getElementById("iosDiagText");
+    if (!panel || !text) return;
+    panel.hidden = false;
+    const lines = [
+      `time=${new Date().toISOString()}`,
+      `online=${navigator.onLine}`,
+      `origin=${location.origin}`,
+      `protocol=${location.protocol}`,
+      `standalone=${window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone}`,
+      `supabase_lib=${!!(window.supabase && window.supabase.createClient)}`,
+      `config_url=${String(window.__SUPABASE_CONFIG__?.url || "")}`,
+      `config_anon=${String(window.__SUPABASE_CONFIG__?.anonKey || "").slice(0, 8)}...`,
+      `auth_user=${lastDiag.authUserId || "none"}`,
+      `conn_status=${lastDiag.connStatus || ""}`,
+      `auth_status=${lastDiag.authStatus || ""}`,
+      `last_error=${lastDiag.lastError || ""}`
+    ];
+    text.textContent = lines.join("\n");
+  }
+
   function setConnectionStatus(text) {
     const value = String(text || "");
     const el = document.getElementById("connectionStatus");
@@ -344,11 +366,8 @@
       else dot.classList.add("connection-dot--online");
     }
 
-    if (value.toLowerCase() === "offline") {
-      showConnectionLock("Brak polaczenia. Aplikacja zablokowana dla prywatnosci.");
-    } else {
-      hideConnectionLock();
-    }
+    lastDiag.connStatus = value;
+    updateIosDiag();
   }
 
   function isNetworkError(error) {
@@ -372,20 +391,6 @@
     return `Blad SQL: ${msg || "nieznany"}`;
   }
 
-  function showConnectionLock(message) {
-    if (elements.connectionLock) {
-      elements.connectionLock.hidden = false;
-    }
-    if (elements.connectionLockText) {
-      elements.connectionLockText.textContent = String(message || "Aplikacja zablokowana.");
-    }
-  }
-
-  function hideConnectionLock() {
-    if (elements.connectionLock) {
-      elements.connectionLock.hidden = true;
-    }
-  }
 
   async function init() {
     applyRuntimeMode();
@@ -460,9 +465,20 @@
     const config = window.__SUPABASE_CONFIG__ || {};
     const url = String(config.url || "").trim();
     const anonKey = String(config.anonKey || "").trim();
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
+    const isSecure = location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1";
 
     if (!hasSupabase || !url || !anonKey) {
       updateAuthStatus("Brak konfiguracji Supabase. Uzupe?nij supabase.config.js");
+      lastDiag.lastError = "Missing supabase config or library";
+      updateIosDiag();
+      return;
+    }
+    if (isStandalone && !isSecure) {
+      updateAuthStatus("PWA na iOS wymaga HTTPS. Otworz strone przez https i zaloguj sie ponownie.");
+      setConnectionStatus("Offline");
+      lastDiag.lastError = "PWA requires HTTPS";
+      updateIosDiag();
       return;
     }
 
@@ -477,7 +493,11 @@
       if (authUser) {
         handleSignedIn(authUser);
       } else {
-        handleSignedOut("Zaloguj sie emailem i haslem");
+        if (isStandalone) {
+          handleSignedOut("Zaloguj sie w PWA (sesja jest osobna od Safari)");
+        } else {
+          handleSignedOut("Zaloguj sie emailem i haslem");
+        }
       }
 
       authClient.auth.onAuthStateChange((_event, session) => {
@@ -493,16 +513,18 @@
       authUser = null;
       updateAuthStatus("Tryb lokalny (offline) - blad polaczenia z Supabase");
       setConnectionStatus("Offline");
+      lastDiag.lastError = "Supabase init failed";
+      updateIosDiag();
     }
   }
 
   function handleSignedIn(user) {
     if (!user) return;
+    lastDiag.authUserId = user.id;
     setActiveUserId(`sb_${user.id}`);
     updateAuthStatus(`Zalogowano: ${user.email || "konto"}`);
     setAuthGate(false);
     setConnectionStatus("");
-    hideConnectionLock();
     lastKnownLevel = null;
     loadEntries();
     loadProfileState();
@@ -513,11 +535,11 @@
   }
 
   function handleSignedOut(message) {
+    lastDiag.authUserId = "";
     setActiveUserId("guest_local");
     updateAuthStatus(message || "Wylogowano");
     setAuthGate(true);
     lastKnownLevel = null;
-    hideConnectionLock();
     loadEntries();
     loadProfileState();
     renderActiveUser();
@@ -580,6 +602,8 @@
       }
     } catch {
       setConnectionStatus("Offline");
+      lastDiag.lastError = "getSession failed";
+      updateIosDiag();
       return false;
     } finally {
       refreshInFlight = false;
@@ -605,13 +629,30 @@
       await new Promise(resolve => setTimeout(resolve, RECONNECT_DELAY_MS));
     }
     setConnectionStatus("Offline");
+    maybeReloadApp(reason);
     reconnectInFlight = false;
+  }
+
+  function maybeReloadApp(reason) {
+    if (!navigator.onLine) return;
+    const key = "quest_last_reload_at";
+    const now = Date.now();
+    const last = Number(localStorage.getItem(key) || 0);
+    if (now - last < 120000) {
+      return;
+    }
+    localStorage.setItem(key, String(now));
+    if (reason !== "poll") {
+      window.location.reload();
+    }
   }
 
   function updateAuthStatus(text) {
     if (elements.authStatus) {
       elements.authStatus.textContent = fixPolishText(text);
     }
+    lastDiag.authStatus = String(text || "");
+    updateIosDiag();
   }
 
   function setAuthGate(locked) {
@@ -959,6 +1000,8 @@
       if (isNetworkError(error)) {
         setConnectionStatus("Offline");
       }
+      lastDiag.lastError = String(error.message || error);
+      updateIosDiag();
       return;
     }
     if (!data || !data.payload || typeof data.payload !== "object") {
@@ -1176,16 +1219,26 @@
     if (elements.installBtn) {
       elements.installBtn.addEventListener("click", handleInstallPrompt);
     }
-    if (elements.connectionUnlockBtn) {
-      elements.connectionUnlockBtn.addEventListener("click", () => {
-        if (!navigator.onLine) {
-          showConnectionLock("Brak polaczenia. Aplikacja zablokowana dla prywatnosci.");
-          setConnectionStatus("Offline");
-          return;
+    const iosDiagClose = document.getElementById("iosDiagCloseBtn");
+    if (iosDiagClose) {
+      iosDiagClose.addEventListener("click", () => {
+        const panel = document.getElementById("iosDiagPanel");
+        if (panel) panel.hidden = true;
+      });
+    }
+    const iosDiagRefresh = document.getElementById("iosDiagRefreshBtn");
+    if (iosDiagRefresh) {
+      iosDiagRefresh.addEventListener("click", () => updateIosDiag());
+    }
+    const iosDiagCopy = document.getElementById("iosDiagCopyBtn");
+    if (iosDiagCopy) {
+      iosDiagCopy.addEventListener("click", async () => {
+        const text = document.getElementById("iosDiagText")?.textContent || "";
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          // Ignore clipboard errors on iOS
         }
-        showConnectionLock("Sprawdzanie polaczenia...");
-        setConnectionStatus("connecting");
-        void runReconnectSequence("manual");
       });
     }
     if (elements.dismissInstallBtn) {
@@ -1824,6 +1877,8 @@
         } else {
           updatePlannerStatus("Nie udalo sie pobrac wspolnego planera. Pokazuje lokalne zadania.");
         }
+        lastDiag.lastError = String(error?.message || error || "planner fetch failed");
+        updateIosDiag();
         renderPlannerNotes();
         renderPlannerCalendar();
         return;

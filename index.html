@@ -541,13 +541,16 @@
     <span id="userExp" hidden></span>
     <span id="navProgressMeta" hidden></span>
 
-    <!-- Connection Lock Overlay -->
-    <div id="connectionLock" class="connection-lock" hidden>
-        <div class="connection-lock__content">
-            <div class="icon-brand mb-3" style="background: rgba(255,255,255,0.08);">Q</div>
-            <strong class="md3-title-medium">Aplikacja zablokowana</strong>
-            <p id="connectionLockText" class="md3-body-small text-secondary">Dla prywatnosci. Brak polaczenia.</p>
-            <button id="connectionUnlockBtn" class="md3-btn md3-btn-filled">Odblokuj</button>
+    <!-- iOS Diagnostics Panel -->
+    <div id="iosDiagPanel" class="ios-diag-panel" hidden>
+        <div class="ios-diag-head">
+            <strong>Diagnostyka iOS</strong>
+            <button id="iosDiagCloseBtn" class="icon-btn-small">Zamknij</button>
+        </div>
+        <pre id="iosDiagText" class="ios-diag-text">...</pre>
+        <div class="ios-diag-actions">
+            <button id="iosDiagCopyBtn" class="md3-btn md3-btn-tonal">Kopiuj log</button>
+            <button id="iosDiagRefreshBtn" class="md3-btn md3-btn-filled">Odswiez</button>
         </div>
     </div>
 
@@ -565,16 +568,8 @@
         }
       });
 
-      const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          if (isIos) {
-            // iOS PWA has unreliable caching; disable SW to avoid blocked Supabase connections.
-            navigator.serviceWorker.getRegistrations().then(regs => {
-              regs.forEach(reg => reg.unregister());
-            });
-            return;
-          }
           navigator.serviceWorker.register('./sw.js', { scope: './' }).then(registration => {
             console.log('ServiceWorker registration successful with scope: ', registration.scope);
           }, err => {
