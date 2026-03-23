@@ -184,6 +184,7 @@ const communityOverviewGrid = document.getElementById("communityOverviewGrid");
 const communityDayLabel = document.getElementById("communityDayLabel");
 const communityDayList = document.getElementById("communityDayList");
 const communityDayEmpty = document.getElementById("communityDayEmpty");
+const entriesShowMoreBtn = document.getElementById("entriesShowMoreBtn");
 
 const adminPassword = "Klucz";
 const adminUnlockKey = "admin.unlocked.v1";
@@ -1776,6 +1777,29 @@ const eventTypeLabels = {
 
 const formatEventLabel = (type) => eventTypeLabels[type] || "Zdarzenie";
 
+const monthNames = [
+  "Styczeń",
+  "Luty",
+  "Marzec",
+  "Kwiecień",
+  "Maj",
+  "Czerwiec",
+  "Lipiec",
+  "Sierpień",
+  "Wrzesień",
+  "Październik",
+  "Listopad",
+  "Grudzień",
+];
+
+const formatMonthLabel = (dateStr) => {
+  if (!dateStr || typeof dateStr !== "string") return "";
+  const [year, month] = dateStr.split("-");
+  const monthIndex = Number(month) - 1;
+  const name = monthNames[monthIndex] || "";
+  return name && year ? `${name} ${year}` : dateStr;
+};
+
 const loadRecentEntries = () => {
   const workEntries = loadEntriesSafe()
     .filter((entry) => entry && typeof entry.date === "string")
@@ -1805,10 +1829,32 @@ const loadRecentEntries = () => {
   });
 };
 
+const entriesPageSize = 4;
+let entriesVisibleCount = entriesPageSize;
+let entriesExpanded = false;
+
+const updateEntriesShowMore = (totalCount) => {
+  if (!entriesShowMoreBtn) return;
+  if (totalCount <= entriesPageSize) {
+    entriesShowMoreBtn.hidden = true;
+    entriesVisibleCount = entriesPageSize;
+    entriesExpanded = false;
+    return;
+  }
+  entriesShowMoreBtn.hidden = false;
+  entriesShowMoreBtn.textContent = entriesExpanded ? "Pokaż mniej" : "Pokaż więcej";
+};
+
 const renderEntries = () => {
   if (!entriesList) return;
   const entries = loadRecentEntries();
   entriesList.innerHTML = "";
+  if (entries.length <= entriesPageSize) {
+    entriesVisibleCount = entriesPageSize;
+    entriesExpanded = false;
+  } else {
+    entriesVisibleCount = entriesExpanded ? Number.POSITIVE_INFINITY : entriesPageSize;
+  }
 
   if (entries.length === 0) {
     const empty = document.createElement("li");
@@ -1816,10 +1862,20 @@ const renderEntries = () => {
     empty.textContent = "Brak wpisów.";
     entriesList.appendChild(empty);
   } else {
+    let lastMonthKey = "";
     entries
       .slice()
       .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, entriesVisibleCount)
       .forEach((entry) => {
+        const monthKey = String(entry.date || "").slice(0, 7);
+        if (monthKey && monthKey !== lastMonthKey) {
+          lastMonthKey = monthKey;
+          const header = document.createElement("li");
+          header.className = "entries-v3-month";
+          header.textContent = formatMonthLabel(entry.date);
+          entriesList.appendChild(header);
+        }
         const li = document.createElement("li");
         li.className = "entries-v3-item";
 
@@ -1894,6 +1950,7 @@ const renderEntries = () => {
         entriesList.appendChild(li);
       });
   }
+  updateEntriesShowMore(entries.length);
 };
 
 const computeStats = () => {
@@ -2822,6 +2879,12 @@ if (clearAllBtn) {
     if (!confirm("Usunďż˝ďż˝ wszystkie wpisy?")) return;
     saveEntriesSafe([]);
     refreshAll();
+  });
+}
+if (entriesShowMoreBtn) {
+  entriesShowMoreBtn.addEventListener("click", () => {
+    entriesExpanded = !entriesExpanded;
+    renderEntries();
   });
 }
 

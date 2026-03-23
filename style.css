@@ -1223,6 +1223,19 @@ input, textarea {
 .entries-v3-item:last-child, .achievement-item:last-child {
   border-bottom: none;
 }
+.entries-v3-month {
+  margin: 12px 0 4px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--md-sys-color-on-surface);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+}
 
 /* --- Mobile tuning for Start view --- */
 @media (max-width: 420px) {
@@ -1341,6 +1354,9 @@ input, textarea {
   background: transparent; border: 1px solid var(--md-sys-color-outline); 
   color: var(--md-sys-color-error); border-radius: 12px; padding: 4px 12px; font-size: 12px;
   cursor: pointer;
+}
+.entries-show-more {
+  margin-top: 12px;
 }
 
 /* Planner Note Styling */
