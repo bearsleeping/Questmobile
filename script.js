@@ -415,10 +415,7 @@ const buildCommunityPayload = () => {
   const currentAvatarUrl = currentProfile.avatarUrl || "";
   const totalExp = computeTotalExpForEntries(currentEntries);
   const { level, progress } = computeLevelingFromExp(totalExp);
-  const band = rankBands.find((b) => level >= b.min && level <= b.max) || rankBands[rankBands.length - 1];
-  const rankLevelRaw = level - band.min + 1;
-  const rankLevel = Math.min(rankLevelRaw, tiersPerRank);
-  const rankName = `${band.name} ${rankTiers[rankLevel - 1]}`;
+  const { rankName } = getRankInfo(level);
   const achievements = loadAchievements().filter((item) => item.unlocked).length;
   const today = new Date().toISOString().slice(0, 10);
   const status = getStatusForDate(currentEntries, currentEvents, today);
@@ -447,10 +444,7 @@ const normalizeCommunityUser = (row) => {
   const events = Array.isArray(row?.events) ? row.events : [];
   const exp = computeTotalExpForEntries(entries);
   const { level, progress } = computeLevelingFromExp(exp);
-  const band = rankBands.find((b) => level >= b.min && level <= b.max) || rankBands[rankBands.length - 1];
-  const rankLevelRaw = level - band.min + 1;
-  const rankLevel = Math.min(rankLevelRaw, tiersPerRank);
-  const computedRankName = `${band.name} ${rankTiers[rankLevel - 1]}`;
+  const { rankName: computedRankName } = getRankInfo(level);
   const todayStr = new Date().toISOString().slice(0, 10);
   return {
     id: row?.user_id || row?.id || "",
@@ -1985,10 +1979,7 @@ const renderLeaderboard = async () => {
     const entries = Array.isArray(user?.entries) ? user.entries : [];
     const totalExp = computeTotalExpForEntries(entries);
     const { level } = computeLevelingFromExp(totalExp);
-    const band = rankBands.find((b) => level >= b.min && level <= b.max) || rankBands[rankBands.length - 1];
-    const rankLevelRaw = level - band.min + 1;
-    const rankLevel = Math.min(Math.max(rankLevelRaw, 1), tiersPerRank);
-    const computedRankName = `${band.name} ${rankTiers[rankLevel - 1]}`;
+    const { rankName: computedRankName } = getRankInfo(level);
     return {
       id: user?.id || user?.user_id || "",
       name: user?.name || "Anonim",
@@ -2504,10 +2495,7 @@ const upsertCurrentUserToCommunity = () => {
   const currentAvatarUrl = currentProfile.avatarUrl || "";
   const totalExp = computeTotalExpForEntries(currentEntries);
   const { level, progress } = computeLevelingFromExp(totalExp);
-  const band = rankBands.find((b) => level >= b.min && level <= b.max) || rankBands[rankBands.length - 1];
-  const rankLevelRaw = level - band.min + 1;
-  const rankLevel = Math.min(rankLevelRaw, tiersPerRank);
-  const rankName = `${band.name} ${rankTiers[rankLevel - 1]}`;
+  const { rankName } = getRankInfo(level);
   const achievements = loadAchievements().filter((item) => item.unlocked).length;
   const today = new Date().toISOString().slice(0, 10);
   const status = getStatusForDate(currentEntries, currentEvents, today);
@@ -2579,10 +2567,7 @@ const getLocalCommunityUsers = () => {
   const currentAvatarUrl = currentProfile.avatarUrl || "";
   const totalExp = computeTotalExpForEntries(currentEntries);
   const { level, progress } = computeLevelingFromExp(totalExp);
-  const band = rankBands.find((b) => level >= b.min && level <= b.max) || rankBands[rankBands.length - 1];
-  const rankLevelRaw = level - band.min + 1;
-  const rankLevel = Math.min(rankLevelRaw, tiersPerRank);
-  const rankName = `${band.name} ${rankTiers[rankLevel - 1]}`;
+  const { rankName } = getRankInfo(level);
   const achievements = loadAchievements().filter((item) => item.unlocked).length;
   const today = new Date().toISOString().slice(0, 10);
   const status = getStatusForDate(currentEntries, currentEvents, today);
@@ -2616,8 +2601,7 @@ const getLocalCommunityUsers = () => {
     const { level: otherLevel, progress: otherProgress } = computeLevelingFromExp(exp);
     const otherBand =
       rankBands.find((b) => otherLevel >= b.min && otherLevel <= b.max) || rankBands[rankBands.length - 1];
-    const otherRankLevel = Math.min(otherLevel - otherBand.min + 1, tiersPerRank);
-    const otherRankName = `${otherBand.name} ${rankTiers[otherRankLevel - 1]}`;
+    const { rankName: otherRankName } = getRankInfo(otherLevel);
     const status = getStatusForDate(entries, events, todayStr);
     const liveStatus = getLiveWorkStatus(entries, todayStr);
     return {
@@ -5095,6 +5079,15 @@ const computeLeveling = () => {
   return computeLevelingFromExp(getEffectiveTotalExp());
 };
 
+const getRankInfo = (level) => {
+  const safeLevel = Math.max(1, Math.floor(Number(level) || 1));
+  const band = rankBands.find((b) => safeLevel >= b.min && safeLevel <= b.max) || rankBands[rankBands.length - 1];
+  const rankSize = Math.max(1, Number(band.max) - Number(band.min) + 1);
+  const rankLevel = Math.min(Math.max(safeLevel - band.min + 1, 1), rankSize);
+  const rankName = `${band.name} ${rankLevel}`;
+  return { band, rankSize, rankLevel, rankName };
+};
+
 const rankConfigUrl = "./rank-config.json";
 
 const rankConfigFallback = {
@@ -5187,13 +5180,9 @@ const updateRankUI = () => {
   const totalExp = getEffectiveTotalExp();
   const { level, progress } = computeLevelingFromExp(totalExp);
 
-  const band = rankBands.find((b) => level >= b.min && level <= b.max) || rankBands[rankBands.length - 1];
+  const { band, rankSize, rankLevel, rankName } = getRankInfo(level);
   const nextBand = rankBands[rankBands.indexOf(band) + 1];
-  const rankSize = tiersPerRank;
-  const rankLevelRaw = level - band.min + 1;
-  const rankLevel = Math.min(rankLevelRaw, tiersPerRank);
   const rankPercent = Math.max(0, Math.min(100, Math.round(((rankLevel - 1 + progress) / rankSize) * 100)));
-  const rankName = `${band.name} ${rankTiers[rankLevel - 1]}`;
 
   if (navUserLevel) navUserLevel.textContent = `Poziom ${level}`;
   if (navUserRank) navUserRank.textContent = rankName;
@@ -5203,7 +5192,7 @@ const updateRankUI = () => {
   if (currentRankName) currentRankName.textContent = rankName;
   if (rankProgressFill) rankProgressFill.style.width = `${rankPercent}%`;
   if (rankMetaText) {
-    rankMetaText.textContent = `Poziom rangi: ${rankLevel}/${rankSize} | Segment ${rankTiers[rankLevel - 1]} | ${rankPercent}%`;
+    rankMetaText.textContent = `Poziom rangi: ${rankLevel}/${rankSize} | Segment ${rankLevel} | ${rankPercent}%`;
   }
   if (rankNextText) {
     rankNextText.textContent = nextBand
