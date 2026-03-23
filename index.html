@@ -173,7 +173,7 @@
                     </div>
                 </div>
                 <p id="forecastRateHint" class="md3-body-small text-secondary mt-2 opacity-80">Stawka: —</p>
-                <p class="md3-body-small text-secondary mt-2 opacity-80">Wyliczenie na podstawie tempa z bieżącego miesiąca.</p>
+                <p class="md3-body-small text-secondary mt-2 opacity-80">Wyliczenie na podstawie godzin z bieżącego miesiąca.</p>
             </div>
 
             <!-- Manual Entry Form -->
@@ -260,9 +260,14 @@
 
         <div id="viewProgress" class="view-section">
             <div class="md3-card mb-4" id="communityCard">
-                <div class="flex-between mb-2">
+                <div class="flex-between align-center mb-2">
                     <h3 class="md3-title-medium">Społeczność</h3>
-                    <span id="communityMeta" class="md3-label-small text-secondary">Lokalnie</span>
+                    <div class="flex-row align-center gap-2">
+                        <span id="communityMeta" class="md3-label-small text-secondary">Lokalnie</span>
+                        <button id="communityRefreshBtn" class="icon-btn planner-refresh-btn" aria-label="Odśwież społeczność">
+                            <img src="icons/refresh.svg" alt="">
+                        </button>
+                    </div>
                 </div>
                 <div class="community-calendar community-calendar--overview">
                     <div class="community-calendar__header">
@@ -341,7 +346,7 @@
 
             <div class="md3-card mb-4" id="leaderboardCard">
                 <div class="flex-between mb-2">
-                    <h3 class="md3-title-medium">Ranking lokalny</h3>
+                    <h3 class="md3-title-medium">Ranking</h3>
                     <span id="leaderboardMeta" class="md3-label-small text-secondary">Tylko to urz?dzenie</span>
                 </div>
                 <ol id="leaderboardList" class="leaderboard-list"></ol>
@@ -511,7 +516,12 @@
             </div>
 
             <div class="md3-card mt-4">
-                <h3 class="md3-title-medium">Produkcja dnia</h3>
+                <div class="flex-between align-center mb-2">
+                    <h3 class="md3-title-medium">Produkcja dnia</h3>
+                    <button id="productionRefreshBtn" class="icon-btn planner-refresh-btn" aria-label="Odśwież produkcję">
+                        <img src="icons/refresh.svg" alt="">
+                    </button>
+                </div>
                 <p id="productionSummary" class="md3-body-small text-secondary">Brak danych.</p>
                 <form id="productionForm" class="flex-col gap-3 mt-3 width-full">
                     <span class="md3-label-small field-group-label">Data</span>

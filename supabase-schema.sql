@@ -106,3 +106,39 @@ create policy "planner_public_delete_own"
   on public.planner_public
   for delete
   using (auth.uid() = created_by);
+
+-- Production entries shared between authenticated users
+create extension if not exists pgcrypto;
+
+create table if not exists public.production_entries (
+  id uuid primary key default gen_random_uuid(),
+  date date not null,
+  product text not null,
+  qty numeric not null,
+  created_at timestamptz not null default now(),
+  created_by uuid references auth.users on delete set null default auth.uid(),
+  author_name text,
+  author_avatar text
+);
+
+alter table public.production_entries enable row level security;
+
+create policy "production_entries_select_auth"
+  on public.production_entries
+  for select
+  using (auth.role() = 'authenticated');
+
+create policy "production_entries_insert_own"
+  on public.production_entries
+  for insert
+  with check (auth.uid() = created_by);
+
+create policy "production_entries_update_own"
+  on public.production_entries
+  for update
+  using (auth.uid() = created_by);
+
+create policy "production_entries_delete_own"
+  on public.production_entries
+  for delete
+  using (auth.uid() = created_by);

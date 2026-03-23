@@ -47,6 +47,7 @@ const supabaseClient = supabaseEnabled ? supabaseLib.createClient(supabaseUrl, s
 const supabaseSyncTable = "user_storage";
 const supabaseCommunityTable = "community_users";
 const supabasePlannerTable = "planner_public";
+const supabaseProductionTable = "production_entries";
 const isDevPage = document.body?.dataset?.devPage === "true";
 let supabaseUser = null;
 let supabaseSyncSuspended = false;
@@ -55,9 +56,12 @@ let supabaseCommunityUsers = null;
 let supabaseCommunityLoading = false;
 let supabasePlannerNotes = null;
 let supabasePlannerLoading = false;
+let supabaseProductionEntries = null;
+let supabaseProductionLoading = false;
 let authAudioContext = null;
 
 const plannerUsesSupabase = () => Boolean(supabaseEnabled && supabaseClient && supabaseUser);
+const productionUsesSupabase = () => Boolean(supabaseEnabled && supabaseClient && supabaseUser);
 
 const getAuthAudioContext = () => {
   const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -89,13 +93,25 @@ const playAuthTone = (frequency, offset = 0, duration = 0.1, type = "sine", volu
 };
 
 const playLoginSound = () => {
-  playAuthTone(540, 0, 0.09, "sine", 0.05);
-  playAuthTone(780, 0.09, 0.12, "sine", 0.05);
+  playAuthTone(523, 0, 0.07, "triangle", 0.05);
+  playAuthTone(659, 0.07, 0.08, "triangle", 0.05);
+  playAuthTone(784, 0.15, 0.1, "triangle", 0.05);
 };
 
 const playLogoutSound = () => {
-  playAuthTone(780, 0, 0.09, "sine", 0.05);
-  playAuthTone(520, 0.09, 0.12, "sine", 0.05);
+  playAuthTone(784, 0, 0.08, "sawtooth", 0.045);
+  playAuthTone(659, 0.08, 0.08, "sawtooth", 0.04);
+  playAuthTone(523, 0.16, 0.1, "sawtooth", 0.04);
+};
+
+const playClickSound = () => {
+  playAuthTone(900, 0, 0.04, "square", 0.03);
+};
+
+const playRankUpSound = () => {
+  playAuthTone(620, 0, 0.08, "sine", 0.05);
+  playAuthTone(920, 0.08, 0.1, "sine", 0.05);
+  playAuthTone(1240, 0.18, 0.12, "sine", 0.05);
 };
 
 const workForm = document.getElementById("workForm");
@@ -146,6 +162,7 @@ const weeklyChallengesMeta = document.getElementById("weeklyChallengesMeta");
 const communityList = document.getElementById("communityList");
 const communityEmpty = document.getElementById("communityEmpty");
 const communityMeta = document.getElementById("communityMeta");
+const communityRefreshBtn = document.getElementById("communityRefreshBtn");
 const communityProfileModal = document.getElementById("communityProfileModal");
 const communityProfileCloseBtn = document.getElementById("communityProfileCloseBtn");
 const communityProfileAvatar = document.getElementById("communityProfileAvatar");
@@ -318,6 +335,16 @@ const setSupabaseStatus = (message, isError = false) => {
   supabaseStatusEl.classList.toggle("text-secondary", !isError);
 };
 
+let rankToastSuppressed = true;
+let rankToastResumeTimer = null;
+const suppressRankToast = (duration = 2000) => {
+  rankToastSuppressed = true;
+  window.clearTimeout(rankToastResumeTimer);
+  rankToastResumeTimer = window.setTimeout(() => {
+    rankToastSuppressed = false;
+  }, duration);
+};
+
 const clearLocalUserData = () => {
   const extraKeys = [leaderboardKey, rankStateKey, weeklyChallengesKey, communityKey];
   supabaseSyncSuspended = true;
@@ -326,6 +353,7 @@ const clearLocalUserData = () => {
   supabaseSyncSuspended = false;
   supabaseCommunityUsers = null;
   supabasePlannerNotes = null;
+  supabaseProductionEntries = null;
   if (typeof applyProfileToUI === "function") {
     applyProfileToUI();
   }
@@ -479,6 +507,51 @@ const refreshCommunityFromSupabase = () => {
   });
 };
 
+const normalizeProductionRow = (row) => ({
+  id: row?.id || "",
+  date: row?.date || "",
+  product: row?.product || "",
+  qty: Number(row?.qty) || 0,
+  createdBy: row?.created_by || "",
+  authorName: row?.author_name || "",
+  authorAvatar: row?.author_avatar || "",
+  createdAt: row?.created_at || "",
+});
+
+const fetchProductionFromSupabase = async (dateFilter = "") => {
+  if (!productionUsesSupabase()) return false;
+  if (supabaseProductionLoading) return false;
+  supabaseProductionLoading = true;
+  try {
+    let query = supabaseClient
+      .from(supabaseProductionTable)
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (dateFilter) {
+      query = query.eq("date", dateFilter);
+    }
+    const { data, error } = await query;
+    supabaseProductionLoading = false;
+    if (error) {
+      setSupabaseStatus("Błąd pobierania produkcji.", true);
+      return false;
+    }
+    supabaseProductionEntries = Array.isArray(data) ? data.map(normalizeProductionRow) : [];
+    return true;
+  } catch {
+    supabaseProductionLoading = false;
+    setSupabaseStatus("Błąd pobierania produkcji.", true);
+    return false;
+  }
+};
+
+const refreshProductionFromSupabase = (dateFilter = "") => {
+  if (!productionUsesSupabase()) return;
+  fetchProductionFromSupabase(dateFilter).then(() => {
+    renderProductionList();
+  });
+};
+
 const updateSupabaseAuthUI = () => {
   if (supabaseOpenBtn) {
     supabaseOpenBtn.disabled = !supabaseEnabled;
@@ -598,6 +671,7 @@ const pushAllToSupabase = async () => {
 
 const pullSupabaseToLocal = async () => {
   if (!supabaseEnabled || !supabaseClient || !supabaseUser) return;
+  suppressRankToast(2500);
   const { data, error } = await supabaseClient
     .from(supabaseSyncTable)
     .select("user_id,key,value,updated_at")
@@ -687,6 +761,7 @@ const signOutSupabase = async () => {
   await supabaseClient.auth.signOut();
   supabaseUser = null;
   supabasePlannerNotes = null;
+  supabaseProductionEntries = null;
   updateSupabaseAuthUI();
   playLogoutSound();
   setSupabaseStatus("Wylogowano.");
@@ -729,6 +804,7 @@ const initSupabase = () => {
       pullSupabaseToLocal();
       refreshCommunityFromSupabase();
       refreshPlannerFromSupabase({ syncLocal: true });
+      refreshProductionFromSupabase(getTodayKey());
     }
     maybeShowSupabaseAuthView();
   });
@@ -740,6 +816,7 @@ const initSupabase = () => {
       pullSupabaseToLocal();
       refreshCommunityFromSupabase();
       refreshPlannerFromSupabase({ syncLocal: true });
+      refreshProductionFromSupabase(getTodayKey());
     }
     maybeShowSupabaseAuthView();
   });
@@ -1831,8 +1908,6 @@ const updateEarningsForecast = () => {
   const now = new Date();
   const year = now.getFullYear();
   const monthIndex = now.getMonth();
-  const dayOfMonth = now.getDate();
-  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
   const monthPrefix = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
 
   const entries = loadEntriesSafe().filter(isWorkEntry);
@@ -1840,9 +1915,7 @@ const updateEarningsForecast = () => {
     .filter((e) => typeof e.date === "string" && e.date.startsWith(monthPrefix))
     .reduce((sum, e) => sum + (Number(e.hours) || 0), 0);
 
-  const paceHours = dayOfMonth > 0 ? monthHours / dayOfMonth : 0;
-  const projectedHours = paceHours * daysInMonth;
-  const gross = projectedHours * rate;
+  const gross = monthHours * rate;
   const net = gross * netFactor;
 
   forecastMonthGross.textContent = formatPLN(gross);
@@ -1905,36 +1978,29 @@ const fireConfetti = () => {
   }, 2600);
 };
 
-const updateLeaderboardLocal = (payload) => {
-  const items = loadLeaderboardLocal();
-  const deviceId = getDeviceId();
-  const existingIndex = items.findIndex((item) => item?.id === deviceId);
-  const entry = {
-    id: deviceId,
-    name: payload.name,
-    rankName: payload.rankName,
-    level: payload.level,
-    totalExp: payload.totalExp,
-    updatedAt: Date.now(),
-  };
-  if (existingIndex >= 0) {
-    items[existingIndex] = entry;
-  } else {
-    items.push(entry);
-  }
-  saveLeaderboardLocal(items);
-};
-
 const renderLeaderboard = async () => {
   if (!leaderboardList || !leaderboardEmpty) return;
-  const localItems = loadLeaderboardLocal();
-  const remoteItems = await fetchLeaderboardRemote();
-  const hasRemote = Array.isArray(remoteItems) && remoteItems.length > 0;
-  const merged = hasRemote ? remoteItems : localItems;
+  const remoteItems = Array.isArray(supabaseCommunityUsers) ? supabaseCommunityUsers : [];
+  const merged = remoteItems;
   if (leaderboardMeta) {
-    leaderboardMeta.textContent = hasRemote ? "Globalny" : "Tylko to urządzenie";
+    leaderboardMeta.textContent = "Supabase";
   }
-  const sorted = merged
+  const enriched = merged.map((user) => {
+    const entries = Array.isArray(user?.entries) ? user.entries : [];
+    const totalExp = computeTotalExpForEntries(entries);
+    const { level } = computeLevelingFromExp(totalExp);
+    const band = rankBands.find((b) => level >= b.min && level <= b.max) || rankBands[rankBands.length - 1];
+    const rankLevelRaw = level - band.min + 1;
+    const rankLevel = Math.min(Math.max(rankLevelRaw, 1), tiersPerRank);
+    const computedRankName = `${band.name} ${rankTiers[rankLevel - 1]}`;
+    return {
+      id: user?.id || user?.user_id || "",
+      name: user?.name || "Anonim",
+      rankName: user?.rankName || computedRankName,
+      totalExp,
+    };
+  });
+  const sorted = enriched
     .filter((item) => item && typeof item.totalExp === "number")
     .sort((a, b) => b.totalExp - a.totalExp)
     .slice(0, 5);
@@ -3549,6 +3615,7 @@ const productionProductInput = document.getElementById("productionProduct");
 const productionQtyInput = document.getElementById("productionQty");
 const productionList = document.getElementById("productionList");
 const productionSummary = document.getElementById("productionSummary");
+const productionRefreshBtn = document.getElementById("productionRefreshBtn");
 
 const plannerKey = "planner.notes.v1";
 const productionKey = "planner.production.v1";
@@ -3724,9 +3791,60 @@ const deletePlannerNoteSupabase = async (noteId) => {
       : [];
     if (plannerStatus) plannerStatus.textContent = "";
     renderPlannerNotes();
+    renderPlannerCalendar();
+    renderPlannerDayAgenda();
     return true;
   } catch {
     if (plannerStatus) plannerStatus.textContent = "Nie udało się usunąć zadania.";
+    return false;
+  }
+};
+
+const addProductionEntrySupabase = async (payload) => {
+  if (!productionUsesSupabase()) return false;
+  try {
+    const { data, error } = await supabaseClient
+      .from(supabaseProductionTable)
+      .insert(payload)
+      .select();
+    if (error) {
+      setSupabaseStatus("Błąd zapisu produkcji.", true);
+      return false;
+    }
+    if (Array.isArray(data) && data[0]) {
+      const normalized = normalizeProductionRow(data[0]);
+      supabaseProductionEntries = Array.isArray(supabaseProductionEntries)
+        ? [normalized, ...supabaseProductionEntries]
+        : [normalized];
+    } else {
+      await fetchProductionFromSupabase(payload.date);
+    }
+    return true;
+  } catch {
+    setSupabaseStatus("Błąd zapisu produkcji.", true);
+    return false;
+  }
+};
+
+const deleteProductionEntrySupabase = async (entryId, dateFilter = "") => {
+  if (!productionUsesSupabase()) return false;
+  try {
+    const { error } = await supabaseClient
+      .from(supabaseProductionTable)
+      .delete()
+      .eq("id", entryId);
+    if (error) {
+      setSupabaseStatus("Błąd usuwania produkcji.", true);
+      return false;
+    }
+    if (Array.isArray(supabaseProductionEntries)) {
+      supabaseProductionEntries = supabaseProductionEntries.filter((row) => row.id !== entryId);
+    }
+    renderProductionList();
+    refreshProductionFromSupabase(dateFilter);
+    return true;
+  } catch {
+    setSupabaseStatus("Błąd usuwania produkcji.", true);
     return false;
   }
 };
@@ -4000,9 +4118,17 @@ const renderPlannerNotes = () => {
 const renderProductionList = () => {
   if (!productionList || !productionSummary || !productionDateInput) return;
   const selectedDate = productionDateInput.value || getTodayKey();
-  const items = loadProductionEntries().filter(
-    (item) => item && item.date === selectedDate
-  );
+  let items = [];
+  if (productionUsesSupabase()) {
+    if (!Array.isArray(supabaseProductionEntries)) {
+      productionSummary.textContent = "Ladowanie produkcji...";
+      productionList.innerHTML = "";
+      return;
+    }
+    items = supabaseProductionEntries.filter((item) => item && item.date === selectedDate);
+  } else {
+    items = loadProductionEntries().filter((item) => item && item.date === selectedDate);
+  }
 
   const totalQty = items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
   productionSummary.textContent =
@@ -4024,16 +4150,26 @@ const renderProductionList = () => {
     li.className = "production-item";
 
     const left = document.createElement("div");
+    left.className = "production-item__left";
+    if (item.authorAvatar || item.authorName) {
+      const avatar = document.createElement("div");
+      avatar.className = "production-item__avatar";
+      setAvatar(avatar, item.authorAvatar, item.authorName || "U");
+      left.appendChild(avatar);
+    }
+    const text = document.createElement("div");
     const name = document.createElement("div");
     name.className = "production-item__name";
     name.textContent = item.product || "Produkt";
 
     const meta = document.createElement("div");
     meta.className = "production-item__meta";
-    meta.textContent = selectedDate;
+    const authorLabel = item.authorName ? ` • ${item.authorName}` : "";
+    meta.textContent = `${selectedDate}${authorLabel}`;
 
-    left.appendChild(name);
-    left.appendChild(meta);
+    text.appendChild(name);
+    text.appendChild(meta);
+    left.appendChild(text);
 
     const right = document.createElement("div");
     right.className = "flex-row align-center gap-2";
@@ -4052,6 +4188,14 @@ const renderProductionList = () => {
         "Usun wpis"
       );
       if (!ok) return;
+      if (productionUsesSupabase()) {
+        if (item.createdBy && supabaseUser && item.createdBy !== supabaseUser.id) {
+          setSupabaseStatus("Nie możesz usunąć cudzej produkcji.", true);
+          return;
+        }
+        await deleteProductionEntrySupabase(item.id, selectedDate);
+        return;
+      }
       const next = loadProductionEntries().filter((row) => row.id !== item.id);
       saveProductionEntries(next);
       renderProductionList();
@@ -4068,7 +4212,26 @@ const renderProductionList = () => {
 
 if (productionDateInput) {
   productionDateInput.value = getTodayKey();
-  productionDateInput.addEventListener("change", renderProductionList);
+  productionDateInput.addEventListener("change", () => {
+    const selectedDate = productionDateInput.value || getTodayKey();
+    if (productionUsesSupabase()) {
+      refreshProductionFromSupabase(selectedDate);
+      return;
+    }
+    renderProductionList();
+  });
+}
+
+if (productionRefreshBtn) {
+  productionRefreshBtn.addEventListener("click", () => {
+    playClickSound();
+    const selectedDate = productionDateInput?.value || getTodayKey();
+    if (productionUsesSupabase()) {
+      refreshProductionFromSupabase(selectedDate);
+      return;
+    }
+    renderProductionList();
+  });
 }
 
 if (productionForm && productionDateInput && productionProductInput && productionQtyInput) {
@@ -4079,6 +4242,22 @@ if (productionForm && productionDateInput && productionProductInput && productio
     const qty = Number(productionQtyInput.value);
     if (!product || !Number.isFinite(qty) || qty <= 0) return;
 
+    if (productionUsesSupabase()) {
+      const profile = loadProfile();
+      addProductionEntrySupabase({
+        date,
+        product,
+        qty,
+        created_by: supabaseUser?.id || null,
+        author_name: profile.name || null,
+        author_avatar: profile.avatarUrl || null,
+      }).then(() => {
+        productionProductInput.value = "";
+        productionQtyInput.value = "";
+        renderProductionList();
+      });
+      return;
+    }
     const entries = loadProductionEntries();
     entries.push({
       id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -4151,12 +4330,25 @@ if (plannerForm && plannerTitleInput && plannerContentInput) {
 
 if (plannerRefreshBtn) {
   plannerRefreshBtn.addEventListener("click", () => {
+    playClickSound();
     if (plannerUsesSupabase()) {
       refreshPlannerFromSupabase();
       return;
     }
     renderPlannerNotes();
     renderPlannerCalendar();
+  });
+}
+
+if (communityRefreshBtn) {
+  communityRefreshBtn.addEventListener("click", () => {
+    playClickSound();
+    if (supabaseEnabled && supabaseClient && supabaseUser) {
+      refreshCommunityFromSupabase();
+      return;
+    }
+    renderCommunityOverview();
+    renderCommunityList();
   });
 }
 
@@ -4770,19 +4962,20 @@ const rankMetaText = document.getElementById("rankMetaText");
 const rankNextText = document.getElementById("rankNextText");
 const rankSteps = Array.from(document.querySelectorAll(".rank-step"));
 
-const expPerHour = 15;
-const fullDayBonus = 40;
-const weekendBonusFactor = 1.15;
-const streakBonusFactor = 1.1;
+const expPerHour = 7;
+const fullDayBonus = 10;
+const weekendBonusFactor = 1.18;
+const streakBonusFactor = 1.03;
+const maxLevel = 100;
 const expCurve = {
-  base: 180,
-  earlyExponent: 1.35,
-  earlyScale: 32,
-  lateExponent: 1.65,
-  lateScale: 38,
+  base: 240,
+  earlyExponent: 1.4,
+  earlyScale: 40,
+  lateExponent: 1.75,
+  lateScale: 50,
   lateStart: 10,
-  lateBonus: 140,
-  lateStep: 12,
+  lateBonus: 200,
+  lateStep: 16,
 };
 
 const expForLevel = (level) => {
@@ -4847,7 +5040,7 @@ const computeTotalExp = () => {
 };
 
 const totalExpFromLevel = (level, progress = 0) => {
-  const safeLevel = Math.max(1, Math.floor(Number(level) || 1));
+  const safeLevel = Math.max(1, Math.min(maxLevel, Math.floor(Number(level) || 1)));
   const safeProgress = clampNumber(Number(progress) || 0, 0, 1);
   let total = 0;
   for (let l = 1; l < safeLevel; l += 1) {
@@ -4868,10 +5061,13 @@ const computeLevelingFromExp = (totalExp) => {
   let expPool = totalExp;
   let level = 1;
   let guard = 0;
-  while (expPool >= expForLevel(level) && guard < 1000) {
+  while (level < maxLevel && expPool >= expForLevel(level) && guard < 1000) {
     expPool -= expForLevel(level);
     level += 1;
     guard += 1;
+  }
+  if (level >= maxLevel) {
+    return { level: maxLevel, progress: 1 };
   }
   const progress = expPool / expForLevel(level);
   return { level, progress };
@@ -5003,17 +5199,10 @@ const updateRankUI = () => {
 
   setRankVisuals(band.name);
 
-  const profile = loadProfile();
-  updateLeaderboardLocal({
-    name: profile.name || "Gość",
-    rankName,
-    level,
-    totalExp,
-  });
-
   const previous = loadRankState();
-  if (previous && previous.rankName !== rankName) {
+  if (!rankToastSuppressed && previous && previous.rankName !== rankName) {
     showRankToast(rankName, level);
+    playRankUpSound();
     fireConfetti();
     const rankBox = document.getElementById("rankBox");
     if (rankBox) {
@@ -5029,6 +5218,7 @@ const updateRankUI = () => {
   saveRankState({ rankName, level, band: band.name, tier: rankLevel });
 };
 
+suppressRankToast(2500);
 initSupabase();
 updateRankUI();
 refreshAll();

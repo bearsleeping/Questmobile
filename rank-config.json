@@ -1,14 +1,14 @@
 {
   "tiersPerRank": 3,
   "rankBands": [
-    { "name": "Bronze", "min": 1, "max": 3 },
-    { "name": "Silver", "min": 4, "max": 6 },
-    { "name": "Gold", "min": 7, "max": 9 },
-    { "name": "Platinum", "min": 10, "max": 12 },
-    { "name": "Diamond", "min": 13, "max": 15 },
-    { "name": "Mythic", "min": 16, "max": 18 },
-    { "name": "Ascended", "min": 19, "max": 21 },
-    { "name": "Eternal", "min": 22, "max": 24 }
+    { "name": "Bronze", "min": 1, "max": 14 },
+    { "name": "Silver", "min": 15, "max": 28 },
+    { "name": "Gold", "min": 29, "max": 42 },
+    { "name": "Platinum", "min": 43, "max": 56 },
+    { "name": "Diamond", "min": 57, "max": 70 },
+    { "name": "Mythic", "min": 71, "max": 84 },
+    { "name": "Ascended", "min": 85, "max": 99 },
+    { "name": "Eternal", "min": 100, "max": 100 }
   ],
   "rankTiers": ["1", "2", "3"],
   "rankVisuals": {
