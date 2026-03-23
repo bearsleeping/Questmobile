@@ -452,19 +452,15 @@ const normalizeCommunityUser = (row) => {
   const rankLevel = Math.min(rankLevelRaw, tiersPerRank);
   const computedRankName = `${band.name} ${rankTiers[rankLevel - 1]}`;
   const todayStr = new Date().toISOString().slice(0, 10);
-  const totalHours = Number.isFinite(Number(row?.total_hours))
-    ? Number(row.total_hours)
-    : entries.reduce((sum, e) => sum + (Number(e.hours) || 0), 0);
-
   return {
     id: row?.user_id || row?.id || "",
     name: row?.name || "Użytkownik",
     avatarUrl: row?.avatar_url || "",
     joinedAt: row?.joined_at || "",
-    totalHours,
-    level: Number.isFinite(Number(row?.level)) ? Number(row.level) : level,
-    levelProgress: Number.isFinite(Number(row?.level_progress)) ? Number(row.level_progress) : progress,
-    rankName: row?.rank_name || computedRankName,
+    totalHours: entries.reduce((sum, e) => sum + (Number(e.hours) || 0), 0),
+    level,
+    levelProgress: progress,
+    rankName: computedRankName,
     achievements: Number.isFinite(Number(row?.achievements)) ? Number(row.achievements) : 0,
     status: row?.status && typeof row.status === "object" ? row.status : getStatusForDate(entries, events, todayStr),
     liveStatus:
@@ -2046,9 +2042,12 @@ const startOfWeek = (date) => {
   return result;
 };
 
+const formatDateKeyLocal = (date) =>
+  `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+
 const getWeekKey = (date) => {
   const start = startOfWeek(date);
-  return `week-${start.toISOString().slice(0, 10)}`;
+  return `week-${formatDateKeyLocal(start)}`;
 };
 
 const loadWeeklyChallenges = (weekKey) => {
@@ -2915,8 +2914,21 @@ if (communityOverviewNextBtn) {
 
 const topAppBar = document.querySelector(".md3-top-app-bar--floating");
 const topbarSpacer = document.querySelector(".topbar-spacer");
+const isAndroid = /Android/i.test(navigator.userAgent || "");
 let lastScrollY = window.scrollY;
 let ticking = false;
+
+const updateTopbarStatic = () => {
+  if (!topAppBar) return;
+  const currentY = window.scrollY;
+  if (currentY <= 8) {
+    topAppBar.classList.remove("is-elevated");
+  } else {
+    topAppBar.classList.add("is-elevated");
+  }
+  topAppBar.classList.remove("is-hidden");
+  if (topbarSpacer) topbarSpacer.classList.remove("is-collapsed");
+};
 
 const updateTopbarOnScroll = () => {
   ticking = false;
@@ -2954,9 +2966,15 @@ const onScroll = () => {
 
 if (topAppBar && topbarSpacer) {
   document.body.classList.add("topbar-float");
-  window.addEventListener("scroll", onScroll, { passive: true });
-  window.addEventListener("resize", updateTopbarOnScroll);
-  updateTopbarOnScroll();
+  if (isAndroid) {
+    document.body.classList.add("android");
+    updateTopbarStatic();
+    window.addEventListener("resize", updateTopbarStatic);
+  } else {
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", updateTopbarOnScroll);
+    updateTopbarOnScroll();
+  }
 }
 if (adminAuthInput) {
   adminAuthInput.addEventListener("keydown", (event) => {

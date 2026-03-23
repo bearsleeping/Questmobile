@@ -96,6 +96,21 @@ body.topbar-float {
   padding-top: 0;
 }
 
+/* Android: stabilize topbar to avoid viewport jumpiness */
+body.android {
+  --topbar-safe-top: 0px;
+}
+body.android .md3-top-app-bar--floating {
+  position: sticky;
+  top: 0;
+  transform: none !important;
+  transition: none !important;
+}
+body.android .topbar-spacer {
+  height: var(--topbar-height, 64px);
+  transition: none !important;
+}
+
 /* --- Typography --- */
 .md3-display-large { font-size: 57px; line-height: 64px; font-weight: 400; }
 .md3-headline-large { font-size: 32px; line-height: 40px; font-weight: 400; }
