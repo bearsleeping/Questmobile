@@ -1,0 +1,895 @@
+﻿<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
+    <meta name="theme-color" content="#000000">
+    <title>Quest Mobile</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Quest">
+    <link rel="icon" href="assets/icons/icon-32.png" sizes="32x32" type="image/png">
+    <link rel="icon" href="assets/icons/icon-16.png" sizes="16x16" type="image/png">
+    <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="assets/icons/icon-180.png" sizes="180x180">
+    <link rel="apple-touch-icon" href="assets/icons/icon-167.png" sizes="167x167">
+    <link rel="apple-touch-icon" href="assets/icons/icon-152.png" sizes="152x152">
+    <link rel="apple-touch-icon" href="assets/icons/icon-120.png" sizes="120x120">
+    <!-- iOS Splash Screens -->
+    <link rel="apple-touch-startup-image" href="assets/splash/splash-1290x2796.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="assets/splash/splash-1179x2556.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="assets/splash/splash-1284x2778.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="assets/splash/splash-1170x2532.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="assets/splash/splash-1080x2340.png" media="(device-width: 360px) and (device-height: 780px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="assets/splash/splash-1125x2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="assets/splash/splash-1242x2688.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="assets/splash/splash-828x1792.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="assets/splash/splash-1242x2208.png" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="assets/splash/splash-750x1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="assets/splash/splash-2048x2732.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="assets/splash/splash-1668x2388.png" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="assets/splash/splash-1668x2224.png" media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="assets/splash/splash-1620x2160.png" media="(device-width: 810px) and (device-height: 1080px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="assets/splash/splash-1488x2266.png" media="(device-width: 744px) and (device-height: 1133px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="assets/splash/splash-1536x2048.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Top Bar -->
+    <header class="md3-top-app-bar md3-top-app-bar--floating">
+        <div class="profile-section" id="editNicknameBtn"> <!-- Reusing ID for profile click -->
+            <div class="profile-avatar-wrap">
+                <div id="mainProfileAvatar" class="avatar-small">U</div>
+                <span id="connectionDot" class="connection-dot connection-dot--offline" aria-label="Status polaczenia"></span>
+            </div>
+            <div class="flex-col profile-info">
+                <div class="profile-name-row">
+                    <span id="mainProfileName" class="md3-title-medium">Go??</span>
+                    <span id="mainProfileRankText" class="profile-rank-text" aria-hidden="true">Bronze 1</span>
+                </div>
+                <div class="header-progress-track">
+                    <div id="navLevelProgressBar" class="header-progress-fill" style="width: 0%"></div>
+                </div>
+                <div class="flex-row align-center gap-2">
+                    <span id="navUserLevel" class="md3-label-small text-secondary">Poziom 1</span>
+                    <span id="navUserRank" class="md3-label-small text-secondary" hidden>Bronze</span>
+                    <span id="connectionStatus" class="md3-label-small text-secondary" style="margin-left: 8px;"></span>
+                </div>
+            </div>
+        </div>
+        <div class="actions">
+            <button id="topbarLogoutBtn" class="icon-btn" aria-label="Wyloguj" title="Wyloguj">
+                <img src="icons/user-logout.svg" alt="">
+            </button>
+        </div>
+    </header>
+    <div class="topbar-spacer" aria-hidden="true"></div>
+
+    <!-- App Content -->
+    <main class="app-container">
+        <!-- Views -->
+        <div id="viewAuth" class="view-section is-active">
+            <div class="auth-screen">
+                <div class="md3-card auth-card">
+                    <div class="auth-brand">
+                        <div class="auth-brand-text">
+                            <span class="auth-app">Quest</span>
+                            <span class="auth-tagline">Praca, postęp i synchronizacja w jednym miejscu.</span>
+                        </div>
+                    </div>
+                    <div class="auth-header">
+                        <div>
+                            <h3 class="auth-heading">Zaloguj się</h3>
+                            <p class="auth-copy">Włącz chmurę, aby mieć dostęp z każdego urządzenia.</p>
+                        </div>
+                        <button id="supabaseBackBtn" class="icon-btn" aria-label="Wróć">
+                            <img src="icons/cross.svg" alt="Wróć">
+                        </button>
+                    </div>
+                    <div id="supabaseStatus" class="auth-status md3-body-small text-secondary" role="status">Brak połączenia.</div>
+                    <div class="auth-fields">
+                        <div class="md3-text-field width-full">
+                            <input id="supabaseEmail" type="email" placeholder=" " autocomplete="email">
+                            <label>Email</label>
+                        </div>
+                        <div class="md3-text-field width-full">
+                            <input id="supabasePassword" type="password" placeholder=" " autocomplete="current-password">
+                            <label>Hasło</label>
+                        </div>
+                    </div>
+                    <div class="auth-actions">
+                        <button id="supabaseSignInBtn" class="md3-btn auth-primary">Zaloguj</button>
+                    </div>
+                    <details class="auth-advanced">
+                        <summary>Zaawansowane</summary>
+                        <div class="auth-advanced-actions">
+                            <button id="supabaseSyncBtn" class="md3-btn md3-btn-tonal">Wymuś synchronizację</button>
+                            <button id="supabaseResetBtn" class="md3-btn md3-btn-text">Reset danych lokalnych</button>
+                            <button id="supabaseContinueBtn" class="md3-btn md3-btn-text auth-continue">Wejdź lokalnie</button>
+                        </div>
+                    </details>
+                </div>
+            </div>
+        </div>
+
+        <div id="viewMain" class="view-section">
+            <!-- Timer Card -->
+            <div class="md3-card md3-card-primary mb-4">
+                <div class="flex-between mb-2">
+                    <span class="md3-label-large">Czas pracy</span>
+                    <span id="timerStatus" class="md3-label-small badge">Nieaktywny</span>
+                </div>
+                <div id="timerDisplay" class="timer-huge">00:00:00</div>
+                <div class="flex-row gap-4 mt-4 justify-center align-center">
+                    <button id="timerPauseBtn" class="md3-fab md3-fab-secondary" disabled>
+                        <img src="icons/pause.svg" alt="Pauza">
+                    </button>
+                    <button id="timerStartBtn" class="md3-fab md3-fab-primary">
+                        <img src="icons/play.svg" alt="Start">
+                    </button>
+                    <button id="timerStopBtn" class="md3-fab md3-fab-tertiary" disabled>
+                        <img src="icons/stop.svg" alt="Stop">
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stats Carousel -->
+            <div class="stats-carousel mb-4">
+                <div class="stat-chip">
+                    <span class="label">Dziś</span>
+                    <strong id="todayHours">0 h</strong>
+                </div>
+                <div class="stat-chip">
+                    <span class="label">Miesiąc</span>
+                    <strong id="monthHours">0 h</strong>
+                </div>
+                <div class="stat-chip">
+                    <span class="label">Seria</span>
+                    <strong id="streakDays">0 dni</strong>
+                </div>
+            </div>
+
+            <!-- Earnings Forecast -->
+            <div class="md3-card mb-4 forecast-card">
+                <div class="flex-between mb-2">
+                    <h3 class="md3-title-medium">Prognoza zarobków</h3>
+                    <span id="forecastMonthLabel" class="md3-label-small text-secondary">—</span>
+                </div>
+                <div class="forecast-grid">
+                    <div class="forecast-item">
+                        <span class="label">Prognoza brutto</span>
+                        <strong id="forecastMonthGross">0 PLN</strong>
+                    </div>
+                    <div class="forecast-item">
+                        <span class="label">Prognoza netto</span>
+                        <strong id="forecastMonthNet">0 PLN</strong>
+                    </div>
+                </div>
+                <p id="forecastRateHint" class="md3-body-small text-secondary mt-2 opacity-80">Stawka: —</p>
+                <p class="md3-body-small text-secondary mt-2 opacity-80">Wyliczenie na podstawie tempa z bieżącego miesiąca.</p>
+            </div>
+
+            <!-- Manual Entry Form -->
+            <div class="md3-card mb-4" id="entryFormPanel">
+                <h3 class="md3-title-medium mb-3">Dodaj ręcznie</h3>
+                <form id="workForm" class="flex-col gap-3 width-full">
+                    <span class="md3-label-small field-group-label">Data</span>
+                    <div class="md3-text-field md3-text-field--no-label date-field">
+                        <input id="workDate" type="date" required>
+                        <div class="trailing-icon">
+                            <img src="icons/calendar.svg" alt="Kalendarz">
+                        </div>
+                    </div>
+                    <div class="flex-row gap-3">
+                        <div class="flex-col flex-1 gap-2">
+                            <span class="md3-label-small" style="margin-left: 4px;">Start</span>
+                            <div class="md3-text-field md3-text-field--no-label">
+                                <input id="startTime" type="time" required style="cursor: pointer;">
+                                <div class="trailing-icon">
+                                    <img src="icons/clock.svg" alt="Zegar">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex-col flex-1 gap-2">
+                            <span class="md3-label-small" style="margin-left: 4px;">Koniec</span>
+                            <div class="md3-text-field md3-text-field--no-label">
+                                <input id="endTime" type="time" required style="cursor: pointer;">
+                                <div class="trailing-icon">
+                                    <img src="icons/clock.svg" alt="Zegar">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="workFormSubmitBtn" type="submit" class="md3-btn md3-btn-tonal width-full">Zapisz wpis</button>
+                    <p id="workFormStatus" class="md3-body-small text-secondary mt-2" role="status"></p>
+                </form>
+                <!-- Hidden displays required by JS -->
+                <span id="workDateDisplay" hidden></span>
+                <span id="startTimeDisplay" hidden></span>
+                <span id="endTimeDisplay" hidden></span>
+                <span id="autoDateText" hidden></span>
+            </div>
+
+            <!-- Week Bars -->
+            <div class="md3-card mt-4">
+                <h3 class="md3-title-medium mb-3">Podsumowanie tygodniowe</h3>
+                <div id="weekBars" class="week-bars"></div>
+            </div>
+
+            <!-- Month Calendar -->
+            <div class="md3-card mt-4">
+                <h3 class="md3-title-medium mb-3 text-center">Kalendarz</h3>
+                <div class="flex-row gap-2 align-center justify-center mb-3">
+                    <button id="calendarPrevBtn" class="icon-btn-small">
+                        <img src="icons/arrow-left.svg" alt="Poprzedni">
+                    </button>
+                    <span id="calendarMonthLabel" class="md3-title-medium badge">...</span>
+                    <button id="calendarNextBtn" class="icon-btn-small">
+                        <img src="icons/arrow-right.svg" alt="Nast?pny">
+                    </button>
+                    <button id="calendarAddBtn" class="icon-btn-small" style="margin-left:4px">
+                        <img src="icons/plus.svg" alt="Dodaj">
+                    </button>
+                </div>
+                <div id="monthCalendar" class="month-calendar"></div>
+                <div class="calendar-legend">
+                    <span><i class="dot dot--work"></i>Praca</span>
+                    <span><i class="dot dot--vacation"></i>Urlop</span>
+                    <span><i class="dot dot--off"></i>Wolne</span>
+                    <span><i class="dot dot--l4"></i>L4</span>
+                    <span><i class="dot dot--absent"></i>Nieobecność</span>
+                </div>
+            </div>
+
+            <!-- Recent Entries -->
+            <div class="md3-card mt-4">
+                <div class="flex-between align-center mb-2">
+                    <h3 class="md3-title-medium">Ostatnie wpisy</h3>
+                    <button id="clearAllBtn" class="md3-btn md3-btn-danger-pill">Wyczyść</button>
+                </div>
+                <ul id="entriesList" class="entries-list"></ul>
+            </div>
+        </div>
+
+        <div id="viewProgress" class="view-section">
+            <div class="md3-card mb-4" id="communityCard">
+                <div class="flex-between mb-2">
+                    <h3 class="md3-title-medium">Społeczność</h3>
+                    <span id="communityMeta" class="md3-label-small text-secondary">Lokalnie</span>
+                </div>
+                <div class="community-calendar community-calendar--overview">
+                    <div class="community-calendar__header">
+                        <button id="communityOverviewPrevBtn" class="icon-btn-small" aria-label="Poprzedni miesiąc">
+                            <img src="icons/arrow-left.svg" alt="">
+                        </button>
+                        <span id="communityOverviewLabel" class="md3-label-large">...</span>
+                        <button id="communityOverviewNextBtn" class="icon-btn-small" aria-label="Następny miesiąc">
+                            <img src="icons/arrow-right.svg" alt="">
+                        </button>
+                    </div>
+                    <div class="community-calendar__weekdays">
+                        <span>Pn</span><span>Wt</span><span>Śr</span><span>Cz</span><span>Pt</span><span>So</span><span>Nd</span>
+                    </div>
+                    <div id="communityOverviewGrid" class="community-calendar__grid"></div>
+                    <div class="community-calendar__legend">
+                        <div class="community-calendar__legend-grid">
+                            <span><i class="cal-dot cal-dot--work"></i>Praca</span>
+                            <span><i class="cal-dot cal-dot--off"></i>Wolne</span>
+                            <span><i class="cal-dot cal-dot--vacation"></i>Urlop</span>
+                            <span><i class="cal-dot cal-dot--l4"></i>L4</span>
+                            <span><i class="cal-dot cal-dot--absent"></i>Nieobecność</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="community-day-panel">
+                    <div class="flex-between mb-2">
+                        <h4 class="md3-title-medium" style="font-size: 14px;">Statusy dnia</h4>
+                        <span id="communityDayLabel" class="md3-label-small text-secondary">-</span>
+                    </div>
+                    <ul id="communityDayList" class="community-list"></ul>
+                    <p id="communityDayEmpty" class="md3-body-small text-secondary mt-2" hidden>Brak statusów dla wybranego dnia.</p>
+                </div>
+                <div class="community-users-panel mt-3">
+                    <h4 class="md3-title-medium" style="font-size: 14px;">Użytkownicy</h4>
+                    <ul id="communityList" class="community-list"></ul>
+                    <p id="communityEmpty" class="md3-body-small text-secondary mt-2" hidden>Brak użytkowników.</p>
+                </div>
+            </div>
+
+            <!-- Rank Box -->
+            <div id="rankBox" class="md3-card mb-4">
+                <div class="rank-header">
+                    <div class="rank-crest">
+                        <span class="rank-badge" data-badge-svg aria-hidden="true"></span>
+                    </div>
+                    <div class="rank-info">
+                        <span class="rank-label">Aktualna ranga</span>
+                        <strong id="currentRankName">Bronze III</strong>
+                    </div>
+                </div>
+                <div class="rank-progress-track">
+                    <div id="rankProgressFill" class="rank-progress-fill" style="width: 75%"></div>
+                </div>
+                <div class="rank-meta">
+                    <span id="rankMetaText">Poziom rangi: 10/12 | Segment III | 75%</span>
+                    <span id="rankNextText">nast?pna: Silver | lvl 13</span>
+                </div>
+                <div class="rank-steps">
+                    <div class="rank-step is-active" data-rank="Bronze">Bronze</div>
+                    <div class="rank-step" data-rank="Silver">Silver</div>
+                    <div class="rank-step" data-rank="Gold">Gold</div>
+                    <div class="rank-step" data-rank="Platinum">Platinum</div>
+                    <div class="rank-step" data-rank="Diamond">Diamond</div>
+                    <div class="rank-step" data-rank="Mythic">Mythic</div>
+                    <div class="rank-step" data-rank="Ascended">Ascended</div>
+                    <div class="rank-step" data-rank="Eternal">Eternal</div>
+                </div>
+            </div>
+
+            <div class="md3-card mb-4">
+                <h3 class="md3-title-medium mb-2">Osiągnięcia do zdobycia</h3>
+                <ul id="achievementsList" class="achievements-list-mobile mt-3"></ul>
+            </div>
+
+
+            <div class="md3-card mb-4" id="leaderboardCard">
+                <div class="flex-between mb-2">
+                    <h3 class="md3-title-medium">Ranking lokalny</h3>
+                    <span id="leaderboardMeta" class="md3-label-small text-secondary">Tylko to urz?dzenie</span>
+                </div>
+                <ol id="leaderboardList" class="leaderboard-list"></ol>
+                <p id="leaderboardEmpty" class="md3-body-small text-secondary mt-2" hidden>Brak danych do wy?wietlenia.</p>
+            </div>
+            <div class="md3-card mb-4" id="weeklyChallengesCard">
+                <div class="flex-between mb-2">
+                    <h3 class="md3-title-medium">Wyzwania tygodniowe</h3>
+                    <span id="weeklyChallengesMeta" class="md3-label-small text-secondary">Ten tydzie?</span>
+                </div>
+                <ul id="weeklyChallengesList" class="weekly-challenges-list"></ul>
+                <p id="weeklyChallengesEmpty" class="md3-body-small text-secondary mt-2" hidden>Brak aktywnych wyzwa?.</p>
+            </div>
+            <!-- Earnings Section -->
+            <div class="md3-card mt-4 earnings-card">
+                <div class="earnings-header">
+                    <div>
+                        <h3 class="md3-title-medium">Zarobki</h3>
+                        <p class="md3-body-small text-secondary earnings-subtitle">Podsumowanie brutto i netto na podstawie godzin.</p>
+                    </div>
+                    <span id="earningsRateBadge" class="md3-label-small badge earnings-rate">...</span>
+                </div>
+                <div class="account-setting mt-2 earnings-toggle">
+                    <div class="account-setting__text">
+                        <strong>Ulga dla młodych (do 26 lat)</strong>
+                        <p class="md3-body-small text-secondary">PIT 0% dla spełniających warunki.</p>
+                    </div>
+                    <label class="toggle-switch">
+                        <input id="earningsUnder26Toggle" type="checkbox">
+                        <span class="toggle-switch__track"><span class="toggle-switch__thumb"></span></span>
+                    </label>
+                </div>
+                <div class="earnings-grid">
+                    <div class="stat-chip align-start earnings-stat">
+                        <span class="label">Miesiąc (Brutto)</span>
+                        <strong id="earningsMonthGross">0 PLN</strong>
+                    </div>
+                    <div class="stat-chip align-start earnings-stat">
+                        <span class="label">Miesiąc (Netto)</span>
+                        <strong id="earningsMonthNet">0 PLN</strong>
+                    </div>
+                    <div class="stat-chip align-start earnings-stat">
+                        <span class="label">Rok (Brutto)</span>
+                        <strong id="earningsYearGross">0 PLN</strong>
+                    </div>
+                    <div class="stat-chip align-start earnings-stat">
+                        <span class="label">Rok (Netto)</span>
+                        <strong id="earningsYearNet">0 PLN</strong>
+                    </div>
+                </div>
+                <div class="mt-3 earnings-month">
+                    <div class="flex-between align-center earnings-month__header">
+                        <h4 class="md3-title-medium" style="font-size: 14px;">Wybrany miesiąc</h4>
+                        <input id="earningsMonthPicker" class="md3-select earnings-month__picker" type="month">
+                    </div>
+                    <div class="earnings-grid mt-2">
+                        <div class="stat-chip align-start earnings-stat earnings-stat--soft">
+                            <span class="label" id="earningsSelectedMonthLabel">Miesiąc</span>
+                            <strong id="earningsSelectedGross">0 PLN</strong>
+                        </div>
+                        <div class="stat-chip align-start earnings-stat earnings-stat--soft">
+                            <span class="label">Netto (po PIT)</span>
+                            <strong id="earningsSelectedNet">0 PLN</strong>
+                        </div>
+                    </div>
+                </div>
+                <p id="earningsHint" class="md3-body-small text-secondary mt-3 opacity-80 earnings-hint">Szacunek uproszczony.</p>
+                <p class="md3-body-small text-secondary mt-2 opacity-80 earnings-hint">
+                  Szacunek uproszczony: PIT 12% (lub 0% przy uldze dla młodych). Bez ZUS i ulg.
+                </p>
+                <span id="earningsModeLabel" hidden></span>
+            </div>
+            
+            <!-- Hidden elements for JS compatibility -->
+            <span id="progressProfileLevel" hidden></span>
+            <span id="progressRankLevel" hidden></span>
+            <span id="progressExp" hidden></span>
+            <span id="userRank" hidden></span>
+            <p id="rewardBank" hidden></p>
+            <div id="progressProfileAvatar" hidden></div>
+            <div id="progressProfileName" hidden></div>
+            <span id="progressNavUserLevel" hidden></span>
+            <span id="progressNavUserRank" hidden></span>
+            <span id="progressNavLevelProgressBar" hidden></span>
+            <span id="progressNavProgressMeta" hidden></span>
+        </div>
+
+        <div id="viewPlanner" class="view-section">
+            <div class="md3-card mb-4 planner-form-card">
+                <h3 class="md3-title-medium">Planer</h3>
+                <p id="plannerStatus" class="md3-body-small text-secondary">Status...</p>
+                <form id="plannerForm" class="flex-col gap-3 mt-3 width-full">
+                    <div class="md3-text-field">
+                        <input id="plannerTitleInput" type="text" placeholder=" " required>
+                        <label>Tytuł</label>
+                    </div>
+                    <span class="md3-label-small planner-date-label">Data</span>
+                    <div class="flex-row gap-3 planner-date-row">
+                        <div class="flex-col flex-1 gap-2">
+                            <div class="md3-text-field md3-text-field--no-label width-full">
+                                <input id="plannerStartDateDisplay" type="text" placeholder=" " readonly style="cursor: pointer; position: absolute; inset: 0; opacity: 1; z-index: 1; background: transparent; border: none; padding: 0 16px; color: var(--md-sys-color-on-surface); font-family: inherit; font-size: 16px;">
+                                <input id="plannerStartDateInput" type="date" required style="position: absolute; inset: 0; opacity: 0; z-index: 2; cursor: pointer; width: 100%;">
+                                <div class="trailing-icon">
+                                    <img src="icons/calendar.svg" alt="Kalendarz">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex-col flex-1 gap-2">
+                            <div class="md3-text-field md3-text-field--no-label width-full">
+                                <input id="plannerEndDateDisplay" type="text" placeholder=" " readonly style="cursor: pointer; position: absolute; inset: 0; opacity: 1; z-index: 1; background: transparent; border: none; padding: 0 16px; color: var(--md-sys-color-on-surface); font-family: inherit; font-size: 16px;">
+                                <input id="plannerEndDateInput" type="date" required style="position: absolute; inset: 0; opacity: 0; z-index: 2; cursor: pointer; width: 100%;">
+                                <div class="trailing-icon">
+                                    <img src="icons/calendar.svg" alt="Kalendarz">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="md3-text-field">
+                        <textarea id="plannerContentInput" rows="3" placeholder=" " required></textarea>
+                        <label>Treść</label>
+                    </div>
+                    <div class="flex-row align-center gap-2">
+                        <input id="plannerPinnedInput" type="checkbox" class="md3-checkbox">
+                        <label for="plannerPinnedInput">Ważne</label>
+                    </div>
+                    <button id="plannerSubmitBtn" class="md3-btn md3-btn-filled width-full">Dodaj zadanie</button>
+                </form>
+            </div>
+            <div class="md3-card mb-4">
+                <div class="flex-between align-center mb-2">
+                    <h3 class="md3-title-medium">Planer: kalendarz</h3>
+                    <div class="flex-row gap-2">
+                        <button id="plannerCalendarPrevBtn" class="icon-btn-small" aria-label="Poprzedni miesiąc">
+                            <img src="icons/arrow-left.svg" alt="">
+                        </button>
+                        <button id="plannerCalendarNextBtn" class="icon-btn-small" aria-label="Następny miesiąc">
+                            <img src="icons/arrow-right.svg" alt="">
+                        </button>
+                    </div>
+                </div>
+                <div class="community-calendar planner-calendar">
+                    <div class="planner-calendar__meta">
+                        <span id="plannerCalendarMonthLabel" class="md3-label-large">...</span>
+                    </div>
+                    <div class="community-calendar__weekdays">
+                        <span>Pn</span><span>Wt</span><span>Śr</span><span>Cz</span><span>Pt</span><span>So</span><span>Nd</span>
+                    </div>
+                    <div id="plannerCalendarGrid" class="community-calendar__grid"></div>
+                </div>
+                <div class="planner-day-panel">
+                    <div class="flex-between mb-2">
+                        <h4 class="md3-title-medium" style="font-size: 14px;">Zadania dnia</h4>
+                        <span id="plannerSelectedDateLabel" class="md3-label-small text-secondary">-</span>
+                    </div>
+                    <p id="plannerSelectedDateMeta" class="md3-body-small text-secondary">Wybierz dzień, aby zobaczyć zadania.</p>
+                    <ul id="plannerDayAgenda" class="planner-day-agenda"></ul>
+                </div>
+            </div>
+            <div class="md3-card">
+                <div class="flex-between align-center mb-2 planner-list-header">
+                    <h3 class="md3-title-medium">Zadania</h3>
+                    <button id="plannerRefreshBtn" class="icon-btn planner-refresh-btn" aria-label="Odśwież">
+                        <img src="icons/refresh.svg" alt="">
+                    </button>
+                </div>
+                <ul id="plannerNotesList" class="planner-list-mobile"></ul>
+            </div>
+
+            <div class="md3-card mt-4">
+                <h3 class="md3-title-medium">Produkcja dnia</h3>
+                <p id="productionSummary" class="md3-body-small text-secondary">Brak danych.</p>
+                <form id="productionForm" class="flex-col gap-3 mt-3 width-full">
+                    <span class="md3-label-small field-group-label">Data</span>
+                    <div class="md3-text-field md3-text-field--no-label date-field">
+                        <input id="productionDate" type="date" required>
+                        <div class="trailing-icon">
+                            <img src="icons/calendar.svg" alt="Kalendarz">
+                        </div>
+                    </div>
+                    <div class="md3-text-field">
+                        <input id="productionProduct" type="text" placeholder=" " required>
+                        <label>Produkt</label>
+                    </div>
+                    <div class="md3-text-field">
+                        <input id="productionQty" type="number" min="1" step="1" placeholder=" " required>
+                        <label>Ilosc</label>
+                    </div>
+                    <button id="productionSubmitBtn" class="md3-btn md3-btn-tonal width-full">Dodaj produkcje</button>
+                </form>
+                <ul id="productionList" class="production-list"></ul>
+            </div>
+            
+            <!-- Hidden planner elements -->
+            <div id="plannerProfileAvatar" hidden></div>
+            <div id="plannerProfileName" hidden></div>
+        </div>
+
+        <div id="viewAdmin" class="view-section">
+            <div class="md3-card mb-4">
+                <h3 class="md3-title-medium">Admin</h3>
+                <p class="md3-body-small text-secondary">Panel administracyjny.</p>
+            </div>
+        </div>
+    </main>
+
+    <div id="iosInstallGuide" class="md3-dialog-overlay" hidden>
+        <div class="md3-dialog">
+            <div class="flex-between mb-2">
+                <h3 class="md3-headline-small">Dodaj do ekranu</h3>
+                <button id="iosInstallCloseBtn" class="icon-btn" aria-label="Zamknij">
+                    <img src="icons/cross.svg" alt="Zamknij">
+                </button>
+            </div>
+            <div class="ios-instruction-step">
+                <div class="ios-icon-box">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a1 1 0 0 0-1 1v7.59l-2.3-2.3a1 1 0 1 0-1.4 1.42l4.01 4.01a1 1 0 0 0 1.4 0l4.01-4.01a1 1 0 0 0-1.42-1.42L13 11.59V4a1 1 0 0 0-1-1z" fill="currentColor"/><path d="M5 14a2 2 0 0 0-2 2v2a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3v-2a2 2 0 0 0-2-2h-1a1 1 0 1 0 0 2h1v2a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-2h1a1 1 0 1 0 0-2H5z" fill="currentColor"/></svg>
+                </div>
+                <div>Stuknij przycisk <strong>Udostępnij</strong> w Safari.</div>
+            </div>
+            <div class="ios-instruction-step">
+                <div class="ios-icon-box">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5a1 1 0 1 1 2 0v5h5a1 1 0 1 1 0 2h-5v5a1 1 0 1 1-2 0v-5H6a1 1 0 1 1 0-2h5V5z" fill="currentColor"/></svg>
+                </div>
+                <div>Wybierz <strong>Do ekranu początkowego</strong>.</div>
+            </div>
+            <button id="iosInstallDoneBtn" class="md3-btn md3-btn-filled width-full">Gotowe</button>
+        </div>
+    </div>
+
+    <div id="earningsRateModal" class="md3-dialog-overlay" hidden>
+        <div class="md3-dialog md3-dialog--earnings-rate" role="dialog" aria-modal="true" aria-labelledby="earningsRateTitle">
+            <div class="flex-between">
+                <h3 id="earningsRateTitle" class="md3-headline-small">Stawka godzinowa</h3>
+                <button id="earningsRateCloseBtn" class="icon-btn" aria-label="Zamknij">
+                    <img src="icons/cross.svg" alt="Zamknij">
+                </button>
+            </div>
+            <p class="md3-body-small text-secondary">Wpisz stawkę brutto za godzinę.</p>
+            <div class="md3-text-field">
+                <input id="earningsRateInput" type="text" inputmode="decimal" placeholder=" ">
+                <label>PLN / h (brutto)</label>
+            </div>
+            <p id="earningsRateError" class="md3-body-small text-error" hidden>Nieprawidłowa stawka.</p>
+            <div class="earnings-rate-actions">
+                <button id="earningsRateCancelBtn" class="md3-btn md3-btn-text">Anuluj</button>
+                <button id="earningsRateSaveBtn" class="md3-btn md3-btn-filled">Zapisz</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Bottom Navigation -->
+    <nav class="md3-navigation-bar">
+        <button class="nav-item" data-view="progress">
+            <div class="icon-container">
+                <img class="icon-outline" src="icons/progress-outline.svg" alt="Postęp">
+                <img class="icon-filled" src="icons/progress-filled.svg" alt="Postęp">
+            </div>
+            <span class="label">Postęp</span>
+        </button>
+        <button class="nav-item nav-item--active" data-view="main">
+            <div class="icon-container">
+                <img class="icon-outline" src="icons/start.svg" alt="Start">
+                <img class="icon-filled" src="icons/start.svg" alt="Start">
+            </div>
+            <span class="label">Start</span>
+        </button>
+        <button class="nav-item" data-view="planner">
+            <div class="icon-container">
+                <img class="icon-outline" src="icons/planner.svg" alt="Planer">
+                <img class="icon-filled" src="icons/planner.svg" alt="Planer">
+            </div>
+            <span class="label">Planer</span>
+        </button>
+        <button class="nav-item" data-view="admin">
+            <div class="icon-container">
+                <img class="icon-outline" src="icons/admin.svg" alt="Admin">
+                <img class="icon-filled" src="icons/admin.svg" alt="Admin">
+            </div>
+            <span class="label">Admin</span>
+        </button>
+    </nav>
+
+    <!-- Account Editor Modal -->
+        <div id="accountEditor" class="md3-dialog-overlay" hidden>
+        <div class="md3-dialog md3-dialog--profile-edit">
+            <div class="flex-between mb-2">
+                <h3 class="md3-headline-small">Edytuj profil</h3>
+            </div>
+            <div class="flex-center">
+                <div id="accountAvatarPreview" class="avatar-large"></div>
+            </div>
+            <input id="accountAvatarFileInput" type="file" hidden>
+            <button id="accountFileTriggerBtn" class="md3-btn md3-btn-tonal width-full">Zmień zdjęcie</button>
+
+            <div class="md3-text-field width-full">
+                <input id="accountNicknameInput" type="text" placeholder=" ">
+                <label>Nazwa</label>
+            </div>
+
+            <div class="profile-dev-row">
+                <div class="profile-dev-info">
+                    <span class="md3-label-small">Tryb developerski</span>
+                    <span id="devModeStatus" class="md3-body-small text-secondary">Wyłączony</span>
+                </div>
+                <button id="devModeToggleBtn" class="md3-btn md3-btn-tonal">Włącz</button>
+            </div>
+
+            <div class="profile-dev-row">
+                <div class="profile-dev-info">
+                    <span class="md3-label-small">Chmura</span>
+                    <span class="md3-body-small text-secondary">Supabase</span>
+                </div>
+                <button id="supabaseOpenBtn" class="md3-btn md3-btn-tonal">Otwórz</button>
+            </div>
+
+            <input id="accountAvatarUrlInput" type="hidden"><div class="flex-row gap-2 justify-end">
+                <button id="accountCancelBtn" class="md3-btn md3-btn-text" aria-label="Anuluj">Anuluj</button>
+                <button id="accountSaveBtn" class="md3-btn md3-btn-filled" aria-label="Zapisz">Zapisz</button>
+            </div>
+        </div>
+    </div>
+
+
+
+    <!-- Developer Mode Auth Dialog -->
+    <div id="devAuthModal" class="md3-dialog-overlay" hidden>
+        <div class="md3-dialog md3-dialog--admin-auth">
+            <div class="admin-auth__header">
+                <div class="admin-auth__badge">
+                    <img src="icons/admin.svg" alt="">
+                </div>
+                <div class="admin-auth__titles">
+                    <h3 class="md3-headline-small">Tryb developerski</h3>
+                    <p class="md3-body-small text-secondary">Dostęp do funkcji testowych.</p>
+                </div>
+                <button id="devAuthCloseBtn" class="icon-btn admin-auth__close" aria-label="Zamknij">
+                    <img src="icons/cross.svg" alt="Zamknij">
+                </button>
+            </div>
+            <p class="md3-body-medium admin-auth__lead">Wpisz hasło, aby włączyć.</p>
+            <div class="md3-text-field width-full admin-auth__field">
+                <input id="devAuthInput" type="password" placeholder=" " autocomplete="current-password">
+                <label>Hasło</label>
+            </div>
+            <p id="devAuthError" class="md3-body-small text-error mt-2 admin-auth__error" hidden>Nieprawidłowe hasło.</p>
+            <div class="admin-auth__actions mt-3">
+                <button id="devAuthCancelBtn" class="md3-btn md3-btn-text">Anuluj</button>
+                <button id="devAuthOkBtn" class="md3-btn md3-btn-filled">Włącz</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Dialog -->
+    <div id="confirmDialog" class="md3-dialog-overlay" hidden>
+        <div class="md3-dialog md3-dialog--confirm">
+            <div class="flex-between mb-2">
+                <h3 id="confirmDialogTitle" class="md3-headline-small">Potwierdzenie</h3>
+                <button id="confirmDialogCloseBtn" class="icon-btn" aria-label="Zamknij">
+                    <img src="icons/cross.svg" alt="Zamknij">
+                </button>
+            </div>
+            <p id="confirmDialogMessage" class="md3-body-medium">Czy na pewno?</p>
+            <div class="flex-row gap-2 justify-end mt-3">
+                <button id="confirmDialogCancelBtn" class="md3-btn md3-btn-tonal" aria-label="Anuluj">Anuluj</button>
+                <button id="confirmDialogOkBtn" class="md3-btn md3-btn-filled" aria-label="Potwierdź">Usuń</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Auth Dialog -->
+    <div id="adminAuthModal" class="md3-dialog-overlay" hidden>
+        <div class="md3-dialog md3-dialog--admin-auth">
+            <div class="admin-auth__header">
+                <div class="admin-auth__badge">
+                    <img src="icons/admin.svg" alt="">
+                </div>
+                <div class="admin-auth__titles">
+                    <h3 class="md3-headline-small">Admin</h3>
+                    <p class="md3-body-small text-secondary">Dostęp chroniony hasłem.</p>
+                </div>
+                <button id="adminAuthCloseBtn" class="icon-btn admin-auth__close" aria-label="Zamknij">
+                    <img src="icons/cross.svg" alt="Zamknij">
+                </button>
+            </div>
+            <p class="md3-body-medium admin-auth__lead">Wpisz hasło, aby uzyskać dostęp.</p>
+            <div class="md3-text-field width-full admin-auth__field">
+                <input id="adminAuthInput" type="password" placeholder=" " autocomplete="current-password">
+                <label>Hasło</label>
+            </div>
+            <p id="adminAuthError" class="md3-body-small text-error mt-2 admin-auth__error" hidden>Nieprawidłowe hasło.</p>
+            <div class="admin-auth__actions mt-3">
+                <button id="adminAuthCancelBtn" class="md3-btn md3-btn-text">Anuluj</button>
+                <button id="adminAuthOkBtn" class="md3-btn md3-btn-filled">Wejdź</button>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="rankUpToast" class="rank-toast" hidden>
+        <div class="rank-toast__content">
+            <div class="rank-toast__badge">
+                <span class="rank-badge rank-badge--small" data-badge-svg aria-hidden="true"></span>
+            </div>
+            <div class="rank-toast__text">
+                <p id="rankToastTitle" class="md3-label-large">Nowa ranga</p>
+                <strong id="rankToastSubtitle" class="md3-title-medium">Bronze 2</strong>
+                <span id="rankToastMeta" class="md3-body-small text-secondary">Poziom 1</span>
+            </div>
+            <div class="rank-toast__bar" aria-hidden="true"><span></span></div>
+        </div>
+    </div>
+    <div id="rankConfetti" class="rank-confetti" aria-hidden="true"></div>
+    <div id="communityProfileModal" class="md3-dialog-overlay" hidden>
+        <div class="md3-dialog community-profile">
+            <div class="community-profile__header profile-section">
+                <div class="profile-avatar-wrap">
+                    <div id="communityProfileAvatar" class="avatar-small">U</div>
+                </div>
+                <div class="flex-col profile-info">
+                    <div class="profile-name-row">
+                        <span id="communityProfileName" class="md3-title-medium">U?ytkownik</span>
+                        <span id="communityProfileRankText" class="profile-rank-text" aria-hidden="true">Bronze 1</span>
+                    </div>
+                    <div class="header-progress-track">
+                        <div id="communityProfileProgressBar" class="header-progress-fill" style="width: 0%"></div>
+                    </div>
+                    <div class="flex-row align-center gap-2">
+                        <span id="communityProfileLevelText" class="md3-label-small text-secondary">Poziom 1</span>
+                    </div>
+                </div>
+            </div>
+            <div class="community-profile__stats">
+                <div class="community-stat">
+                    <span class="label">Godziny</span>
+                    <strong id="communityProfileHours">0 h</strong>
+                </div>
+                <div class="community-stat">
+                    <span class="label">Osiągnięcia</span>
+                    <strong id="communityProfileAchievements">0</strong>
+                </div>
+                <div class="community-stat">
+                    <span class="label">Dołączył</span>
+                    <strong id="communityProfileJoined">-</strong>
+                </div>
+            </div>
+            <div class="community-calendar">
+                <div class="community-calendar__header">
+                    <button id="communityCalendarPrevBtn" class="icon-btn-small" aria-label="Poprzedni miesiąc">
+                        <img src="icons/arrow-left.svg" alt="">
+                    </button>
+                    <span id="communityCalendarLabel" class="md3-label-large">...</span>
+                    <button id="communityCalendarNextBtn" class="icon-btn-small" aria-label="Następny miesiąc">
+                        <img src="icons/arrow-right.svg" alt="">
+                    </button>
+                </div>
+                <div class="community-calendar__weekdays">
+                    <span>Pn</span><span>Wt</span><span>Śr</span><span>Cz</span><span>Pt</span><span>So</span><span>Nd</span>
+                </div>
+                <div id="communityCalendarGrid" class="community-calendar__grid"></div>
+                <div class="community-calendar__legend">
+                    <div class="community-calendar__legend-grid">
+                        <span><i class="cal-dot cal-dot--work"></i>Praca</span>
+                        <span><i class="cal-dot cal-dot--off"></i>Wolne</span>
+                        <span><i class="cal-dot cal-dot--vacation"></i>Urlop</span>
+                        <span><i class="cal-dot cal-dot--l4"></i>L4</span>
+                        <span><i class="cal-dot cal-dot--absent"></i>Nieobecność</span>
+                    </div>
+                </div>
+            </div>
+            <button id="communityProfileCloseBtn" class="md3-btn md3-btn-filled width-full" aria-label="Zamknij">Zamknij</button>
+        </div>
+    </div>
+    <!-- Day Info Modal -->
+    <div id="dayInfoModal" class="md3-dialog-overlay" hidden>
+        <div class="md3-dialog">
+            <div class="flex-between mb-2">
+                <h3 id="dayInfoModalTitle" class="md3-headline-small">Szczegóły dnia</h3>
+                <button id="dayInfoModalCloseBtn" class="icon-btn" aria-label="Zamknij">
+                    <img src="icons/cross.svg" alt="Zamknij">
+                </button>
+            </div>
+            <div id="dayInfoModalContent" class="day-info-content"></div>
+        </div>
+    </div>
+
+    <!-- Calendar Event Modal -->
+    <div id="calendarEventModal" class="md3-dialog-overlay" hidden>
+        <div class="md3-dialog md3-dialog--calendar">
+            <h3 class="md3-headline-small mb-3">Dodaj zdarzenie</h3>
+            <div class="flex-col gap-4">
+                <div class="flex-row gap-3">
+                    <div class="flex-col flex-1 gap-2">
+                        <span class="md3-label-small" style="margin-left: 4px;">Od</span>
+                        <div class="md3-text-field md3-text-field--no-label width-full">
+                            <input id="calendarEventFromDisplay" type="text" placeholder=" " readonly style="cursor: pointer; position: absolute; inset: 0; opacity: 1; z-index: 1; background: transparent; border: none; padding: 0 16px; color: var(--md-sys-color-on-surface); font-family: inherit; font-size: 16px;">
+                            <input id="calendarEventFrom" type="date" style="position: absolute; inset: 0; opacity: 0; z-index: 2; cursor: pointer; width: 100%;">
+                            <div class="trailing-icon"><img src="icons/calendar.svg" alt="Kalendarz"></div>
+                        </div>
+                    </div>
+                    <div class="flex-col flex-1 gap-2">
+                        <span class="md3-label-small" style="margin-left: 4px;">Do</span>
+                        <div class="md3-text-field md3-text-field--no-label width-full">
+                            <input id="calendarEventToDisplay" type="text" placeholder=" " readonly style="cursor: pointer; position: absolute; inset: 0; opacity: 1; z-index: 1; background: transparent; border: none; padding: 0 16px; color: var(--md-sys-color-on-surface); font-family: inherit; font-size: 16px;">
+                            <input id="calendarEventTo" type="date" style="position: absolute; inset: 0; opacity: 0; z-index: 2; cursor: pointer; width: 100%;">
+                            <div class="trailing-icon"><img src="icons/calendar.svg" alt="Kalendarz"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="md3-text-field">
+                    <select id="calendarEventType">
+                        <option value="vacation">Urlop</option>
+                        <option value="off">Wolne</option>
+                        <option value="l4">L4</option>
+                        <option value="absent">Nieobecność</option>
+                    </select>
+                    <label>Typ</label>
+                    <div class="trailing-icon"><img src="icons/chevron-down.svg" alt="Rozwiń"></div>
+                </div>
+            </div>
+            <div class="calendar-modal__actions">
+                <button id="calendarEventCancelBtn" class="md3-btn md3-btn-tonal" aria-label="Anuluj">
+                    <img src="icons/cross.svg" alt="" class="btn-icon">
+                    <span>Anuluj</span>
+                </button>
+                <button id="calendarEventSaveBtn" class="md3-btn md3-btn-filled" aria-label="Zapisz">
+                    <img src="icons/save.svg" alt="" class="btn-icon">
+                    <span>Zapisz</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden stats required by JS -->
+    <span id="totalHours" hidden></span>
+    <span id="entryCount" hidden></span>
+    <span id="monthTotal" hidden></span>
+    <span id="avgHours" hidden></span>
+    <span id="userExp" hidden></span>
+    <span id="navProgressMeta" hidden></span>
+
+    <script src="supabase-config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="script.js"></script>
+</body>
+</html>
+
+
+
+
+
