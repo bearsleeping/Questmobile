@@ -205,6 +205,8 @@ const accountAvatarFileInput = document.getElementById("accountAvatarFileInput")
 const accountFileTriggerBtn = document.getElementById("accountFileTriggerBtn");
 const accountAvatarUrlInput = document.getElementById("accountAvatarUrlInput");
 const supabaseOpenBtn = document.getElementById("supabaseOpenBtn");
+const profileSyncBtn = document.getElementById("profileSyncBtn");
+const profileSyncStatus = document.getElementById("profileSyncStatus");
 const supabaseBackBtn = document.getElementById("supabaseBackBtn");
 const supabaseContinueBtn = document.getElementById("supabaseContinueBtn");
 const supabaseStatusEl = document.getElementById("supabaseStatus");
@@ -333,6 +335,13 @@ const setSupabaseStatus = (message, isError = false) => {
   supabaseStatusEl.textContent = message;
   supabaseStatusEl.classList.toggle("text-error", isError);
   supabaseStatusEl.classList.toggle("text-secondary", !isError);
+};
+
+const setProfileSyncStatus = (message, isError = false) => {
+  if (!profileSyncStatus) return;
+  profileSyncStatus.textContent = message;
+  profileSyncStatus.classList.toggle("text-error", isError);
+  profileSyncStatus.classList.toggle("text-secondary", !isError);
 };
 
 let rankToastSuppressed = true;
@@ -546,6 +555,9 @@ const updateSupabaseAuthUI = () => {
   if (supabaseOpenBtn) {
     supabaseOpenBtn.disabled = !supabaseEnabled;
   }
+  if (profileSyncBtn) {
+    profileSyncBtn.disabled = !supabaseEnabled;
+  }
   if (topbarLogoutBtn) {
     const isAuthed = Boolean(supabaseEnabled && supabaseUser);
     topbarLogoutBtn.hidden = false;
@@ -555,6 +567,7 @@ const updateSupabaseAuthUI = () => {
   }
   if (!supabaseEnabled) {
     setSupabaseStatus("Supabase nie jest skonfigurowany.", true);
+    setProfileSyncStatus("Chmura wyłączona", true);
     if (supabaseEmailInput) supabaseEmailInput.disabled = true;
     if (supabasePasswordInput) supabasePasswordInput.disabled = true;
     if (supabaseSignInBtn) supabaseSignInBtn.disabled = true;
@@ -576,8 +589,10 @@ const updateSupabaseAuthUI = () => {
   if (isAuthed) {
     const label = supabaseUser?.email ? `Połączono jako ${supabaseUser.email}.` : "Połączono z Supabase.";
     setSupabaseStatus(label);
+    setProfileSyncStatus("Gotowe");
   } else {
     setSupabaseStatus("Brak połączenia z Supabase.");
+    setProfileSyncStatus("Brak połączenia", true);
   }
   updateConnectionIndicator();
 };
@@ -1475,6 +1490,23 @@ if (supabaseSyncBtn) {
     }
     setSupabaseStatus("Synchronizacja...");
     pullSupabaseToLocal();
+  });
+}
+if (profileSyncBtn) {
+  profileSyncBtn.addEventListener("click", async () => {
+    if (!supabaseEnabled) {
+      setProfileSyncStatus("Chmura wyłączona", true);
+      return;
+    }
+    if (!supabaseUser) {
+      setProfileSyncStatus("Zaloguj się", true);
+      showAccountEditor(false);
+      openSupabaseAuthView();
+      return;
+    }
+    setProfileSyncStatus("Synchronizacja...");
+    await pullSupabaseToLocal();
+    setProfileSyncStatus("Gotowe");
   });
 }
 if (supabaseResetBtn) {
