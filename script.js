@@ -245,6 +245,7 @@ const connectionDot = document.getElementById("connectionDot");
 const connectionStatus = document.getElementById("connectionStatus");
 
 const profileKey = "profile.settings.v1";
+const supabaseLastUserKey = "supabase.lastUserId.v1";
 const deviceIdKey = "device.id.v1";
 const leaderboardKey = "rank.leaderboard.v1";
 const rankStateKey = "rank.state.v1";
@@ -315,6 +316,43 @@ const setSupabaseStatus = (message, isError = false) => {
   supabaseStatusEl.textContent = message;
   supabaseStatusEl.classList.toggle("text-error", isError);
   supabaseStatusEl.classList.toggle("text-secondary", !isError);
+};
+
+const clearLocalUserData = () => {
+  const extraKeys = [leaderboardKey, rankStateKey, weeklyChallengesKey, communityKey];
+  supabaseSyncSuspended = true;
+  supabaseSyncKeys.forEach((key) => storage.removeItem(key));
+  extraKeys.forEach((key) => storage.removeItem(key));
+  supabaseSyncSuspended = false;
+  supabaseCommunityUsers = null;
+  supabasePlannerNotes = null;
+  if (typeof applyProfileToUI === "function") {
+    applyProfileToUI();
+  }
+};
+
+const hasLocalUserData = () => {
+  for (const key of supabaseSyncKeys) {
+    if (storage.getItem(key) !== null) return true;
+  }
+  const extraKeys = [leaderboardKey, rankStateKey, weeklyChallengesKey, communityKey];
+  for (const key of extraKeys) {
+    if (storage.getItem(key) !== null) return true;
+  }
+  return false;
+};
+
+const handleSupabaseUserSwitch = (nextUserId) => {
+  if (!nextUserId) return;
+  const prevUserId = storage.getItem(supabaseLastUserKey);
+  if (!prevUserId) {
+    if (hasLocalUserData()) {
+      clearLocalUserData();
+    }
+  } else if (prevUserId !== nextUserId) {
+    clearLocalUserData();
+  }
+  storage.setItem(supabaseLastUserKey, nextUserId);
 };
 
 const updateConnectionIndicator = () => {
@@ -560,7 +598,10 @@ const pushAllToSupabase = async () => {
 
 const pullSupabaseToLocal = async () => {
   if (!supabaseEnabled || !supabaseClient || !supabaseUser) return;
-  const { data, error } = await supabaseClient.from(supabaseSyncTable).select("key,value,updated_at");
+  const { data, error } = await supabaseClient
+    .from(supabaseSyncTable)
+    .select("user_id,key,value,updated_at")
+    .eq("user_id", supabaseUser.id);
   if (error) {
     setSupabaseStatus("Błąd pobierania danych z chmury.", true);
     return;
@@ -573,6 +614,7 @@ const pullSupabaseToLocal = async () => {
   supabaseSyncSuspended = true;
   data.forEach((row) => {
     if (!row?.key || !supabaseSyncKeys.has(row.key)) return;
+    if (row?.user_id && row.user_id !== supabaseUser.id) return;
     storage.setItem(row.key, row.value ?? "");
   });
   supabaseSyncSuspended = false;
@@ -603,6 +645,7 @@ const signInSupabase = async () => {
     return;
   }
   supabaseUser = data?.user || data?.session?.user || null;
+  handleSupabaseUserSwitch(supabaseUser?.id);
   updateSupabaseAuthUI();
   if (supabaseUser) {
     playLoginSound();
@@ -626,6 +669,7 @@ const signUpSupabase = async () => {
     return;
   }
   supabaseUser = data?.user || data?.session?.user || null;
+  handleSupabaseUserSwitch(supabaseUser?.id);
   updateSupabaseAuthUI();
   if (supabaseUser) {
     playLoginSound();
@@ -679,6 +723,7 @@ const initSupabase = () => {
   storage.setHooks({ onSet: handleSupabaseWrite, onRemove: handleSupabaseRemove });
   supabaseClient.auth.getSession().then(({ data }) => {
     supabaseUser = data?.session?.user || null;
+    handleSupabaseUserSwitch(supabaseUser?.id);
     updateSupabaseAuthUI();
     if (supabaseUser) {
       pullSupabaseToLocal();
@@ -689,6 +734,7 @@ const initSupabase = () => {
   });
   supabaseClient.auth.onAuthStateChange((_event, session) => {
     supabaseUser = session?.user || null;
+    handleSupabaseUserSwitch(supabaseUser?.id);
     updateSupabaseAuthUI();
     if (supabaseUser) {
       pullSupabaseToLocal();
