@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#000000">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="stylesheet" href="style.css">
+    <title>Quest - Narzedzia developerskie</title>
+</head>
+<body data-dev-page="true">
+    <main class="app-container">
+        <div id="viewMain" class="view-section is-active">
+            <div class="md3-card mb-4">
+                <div class="flex-between align-center mb-2">
+                    <h3 class="md3-title-medium">Narzedzia developerskie</h3>
+                    <a class="md3-btn md3-btn-text" href="index.html">Powrot</a>
+                </div>
+                <p class="md3-body-small text-secondary">
+                    Ta strona dziala tylko wtedy, gdy tryb developerski jest wlaczony w profilu.
+                </p>
+                <div class="profile-dev-row">
+                    <div class="profile-dev-info">
+                        <span class="md3-label-small">Tryb developerski</span>
+                        <span id="devModeStatus" class="md3-body-small text-secondary">Wylaczony</span>
+                    </div>
+                    <button id="devModeToggleBtn" class="md3-btn md3-btn-tonal">Wlacz</button>
+                </div>
+                <p id="devGateMessage" class="md3-body-small text-secondary dev-gate-message">
+                    Wlacz tryb developerski, aby odblokowac narzedzia.
+                </p>
+
+                <div id="devToolsPanel" class="dev-tools-panel" hidden>
+                    <div class="dev-tools-header">
+                        <span class="md3-label-small">Narzedzia developerskie</span>
+                        <span id="devToolsStatus" class="md3-body-small text-secondary"></span>
+                    </div>
+                    <div class="dev-tools-section">
+                        <span class="md3-label-small">Testy UI</span>
+                        <div class="dev-tools-grid">
+                            <button id="devTestNotifyBtn" class="md3-btn md3-btn-tonal">Test powiadomienia</button>
+                            <button id="devTestRankToastBtn" class="md3-btn md3-btn-tonal">Test awansu</button>
+                            <button id="devTestConfettiBtn" class="md3-btn md3-btn-tonal">Test konfetti</button>
+                        </div>
+                    </div>
+                    <div class="dev-tools-section">
+                        <span class="md3-label-small">Poziom (dev)</span>
+                        <div class="dev-level-controls">
+                            <div class="md3-text-field">
+                                <input id="devLevelInput" type="number" min="1" step="1" placeholder=" ">
+                                <label>Poziom (dev)</label>
+                            </div>
+                            <div class="md3-text-field">
+                                <input id="devProgressInput" type="number" min="0" max="100" step="5" placeholder=" ">
+                                <label>Postep %</label>
+                            </div>
+                            <div class="flex-row gap-2 justify-end">
+                                <button id="devLevelMinusBtn" class="md3-btn md3-btn-text">-1</button>
+                                <button id="devLevelPlusBtn" class="md3-btn md3-btn-text">+1</button>
+                                <button id="devLevelApplyBtn" class="md3-btn md3-btn-tonal">Ustaw</button>
+                                <button id="devLevelResetBtn" class="md3-btn md3-btn-text">Reset</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dev-tools-section">
+                        <span class="md3-label-small">Synchronizacja</span>
+                        <div class="dev-tools-grid">
+                            <button id="devSyncPullBtn" class="md3-btn md3-btn-tonal">Pobierz z chmury</button>
+                            <button id="devSyncPushBtn" class="md3-btn md3-btn-tonal">Wyslij do chmury</button>
+                            <button id="devRemoteRefreshBtn" class="md3-btn md3-btn-tonal">Odswiez konfiguracje</button>
+                        </div>
+                    </div>
+                    <div class="dev-tools-section">
+                        <span class="md3-label-small">Dane lokalne</span>
+                        <div class="dev-tools-grid">
+                            <button id="devClearEntriesBtn" class="md3-btn md3-btn-tonal">Wyczysc wpisy</button>
+                            <button id="devClearCalendarBtn" class="md3-btn md3-btn-tonal">Wyczysc kalendarz</button>
+                            <button id="devClearPlannerBtn" class="md3-btn md3-btn-tonal">Wyczysc planer</button>
+                            <button id="devResetLocalBtn" class="md3-btn md3-btn-tonal">Reset lokalny</button>
+                        </div>
+                    </div>
+                    <div class="dev-tools-section">
+                        <span class="md3-label-small">PWA</span>
+                        <div class="dev-tools-grid">
+                            <button id="devSwUpdateBtn" class="md3-btn md3-btn-tonal">Aktualizuj SW</button>
+                            <button id="devSwUnregisterBtn" class="md3-btn md3-btn-tonal">Wyrejestruj SW</button>
+                            <button id="devClearCachesBtn" class="md3-btn md3-btn-tonal">Wyczysc cache</button>
+                            <button id="devReloadBtn" class="md3-btn md3-btn-tonal">Przeladuj</button>
+                        </div>
+                    </div>
+                    <div class="dev-tools-section">
+                        <span class="md3-label-small">Diagnostyka</span>
+                        <div class="dev-tools-grid">
+                            <button id="devUiRefreshBtn" class="md3-btn md3-btn-tonal">Odswiez UI</button>
+                            <button id="devStorageSummaryBtn" class="md3-btn md3-btn-tonal">Podsumowanie danych</button>
+                            <button id="devCopyDebugBtn" class="md3-btn md3-btn-tonal">Kopiuj debug</button>
+                            <button id="devExportDataBtn" class="md3-btn md3-btn-tonal">Eksport JSON</button>
+                            <button id="devImportDataBtn" class="md3-btn md3-btn-tonal">Import JSON</button>
+                            <button id="devToggleOutlinesBtn" class="md3-btn md3-btn-tonal">Kontury UI</button>
+                            <button id="devToggleNoAnimBtn" class="md3-btn md3-btn-tonal">Bez animacji</button>
+                        </div>
+                        <textarea id="devOutput" class="dev-output" rows="8" readonly placeholder="Wyjscie diagnostyczne..."></textarea>
+                        <input id="devImportFileInput" type="file" accept="application/json" hidden>
+                    </div>
+                </div>
+            </div>
+
+            <div class="md3-card mb-4 badge-preview">
+                <div class="flex-between align-center mb-2">
+                    <h3 class="md3-title-medium">Podglad rang</h3>
+                    <span class="md3-label-small text-secondary">Podglad statyczny</span>
+                </div>
+                <div class="badge-preview-grid">
+                    <div class="badge-preview-item">
+                        <div class="badge-preview-icon">
+                            <span class="rank-badge" data-rank="Bronze" data-static-rank data-badge-svg aria-hidden="true"></span>
+                        </div>
+                        <div class="badge-preview-text">
+                            <span class="badge-preview-name">Bronze</span>
+                        </div>
+                    </div>
+                    <div class="badge-preview-item">
+                        <div class="badge-preview-icon">
+                            <span class="rank-badge" data-rank="Silver" data-static-rank data-badge-svg aria-hidden="true"></span>
+                        </div>
+                        <div class="badge-preview-text">
+                            <span class="badge-preview-name">Silver</span>
+                        </div>
+                    </div>
+                    <div class="badge-preview-item">
+                        <div class="badge-preview-icon">
+                            <span class="rank-badge" data-rank="Gold" data-static-rank data-badge-svg aria-hidden="true"></span>
+                        </div>
+                        <div class="badge-preview-text">
+                            <span class="badge-preview-name">Gold</span>
+                        </div>
+                    </div>
+                    <div class="badge-preview-item">
+                        <div class="badge-preview-icon">
+                            <span class="rank-badge" data-rank="Platinum" data-static-rank data-badge-svg aria-hidden="true"></span>
+                        </div>
+                        <div class="badge-preview-text">
+                            <span class="badge-preview-name">Platinum</span>
+                        </div>
+                    </div>
+                    <div class="badge-preview-item">
+                        <div class="badge-preview-icon">
+                            <span class="rank-badge" data-rank="Diamond" data-static-rank data-badge-svg aria-hidden="true"></span>
+                        </div>
+                        <div class="badge-preview-text">
+                            <span class="badge-preview-name">Diamond</span>
+                        </div>
+                    </div>
+                    <div class="badge-preview-item">
+                        <div class="badge-preview-icon">
+                            <span class="rank-badge" data-rank="Mythic" data-static-rank data-badge-svg aria-hidden="true"></span>
+                        </div>
+                        <div class="badge-preview-text">
+                            <span class="badge-preview-name">Mythic</span>
+                        </div>
+                    </div>
+                    <div class="badge-preview-item">
+                        <div class="badge-preview-icon">
+                            <span class="rank-badge" data-rank="Ascended" data-static-rank data-badge-svg aria-hidden="true"></span>
+                        </div>
+                        <div class="badge-preview-text">
+                            <span class="badge-preview-name">Ascended</span>
+                        </div>
+                    </div>
+                    <div class="badge-preview-item">
+                        <div class="badge-preview-icon">
+                            <span class="rank-badge" data-rank="Eternal" data-static-rank data-badge-svg aria-hidden="true"></span>
+                        </div>
+                        <div class="badge-preview-text">
+                            <span class="badge-preview-name">Eternal</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="rankUpToast" class="rank-toast" hidden>
+        <div class="rank-toast__content">
+            <div class="rank-toast__badge">
+                <span class="rank-badge rank-badge--small" data-badge-svg aria-hidden="true"></span>
+            </div>
+            <div class="rank-toast__text">
+                <p id="rankToastTitle" class="md3-label-large">Nowa ranga</p>
+                <strong id="rankToastSubtitle" class="md3-title-medium">Bronze 2</strong>
+                <span id="rankToastMeta" class="md3-body-small text-secondary">Poziom 1</span>
+            </div>
+            <div class="rank-toast__bar" aria-hidden="true"><span></span></div>
+        </div>
+    </div>
+    <div id="rankConfetti" class="rank-confetti" aria-hidden="true"></div>
+
+    <!-- Developer Mode Auth Dialog -->
+    <div id="devAuthModal" class="md3-dialog-overlay" hidden>
+        <div class="md3-dialog md3-dialog--admin-auth">
+            <div class="admin-auth__header">
+                <div class="admin-auth__badge">
+                    <img src="icons/admin.svg" alt="">
+                </div>
+                <div class="admin-auth__titles">
+                    <h3 class="md3-headline-small">Tryb developerski</h3>
+                    <p class="md3-body-small text-secondary">Dostep do funkcji testowych.</p>
+                </div>
+                <button id="devAuthCloseBtn" class="icon-btn admin-auth__close" aria-label="Zamknij">
+                    <img src="icons/cross.svg" alt="Zamknij">
+                </button>
+            </div>
+            <p class="md3-body-medium admin-auth__lead">Wpisz haslo, aby wlaczyc.</p>
+            <div class="md3-text-field width-full admin-auth__field">
+                <input id="devAuthInput" type="password" placeholder=" " autocomplete="current-password">
+                <label>Haslo</label>
+            </div>
+            <p id="devAuthError" class="md3-body-small text-error mt-2 admin-auth__error" hidden>Nieprawidlowe haslo.</p>
+            <div class="admin-auth__actions mt-3">
+                <button id="devAuthCancelBtn" class="md3-btn md3-btn-text">Anuluj</button>
+                <button id="devAuthOkBtn" class="md3-btn md3-btn-filled">Wlacz</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js" defer></script>
+</body>
+</html>
