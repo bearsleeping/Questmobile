@@ -119,30 +119,23 @@
         </div>
 
         <div id="viewMain" class="view-section">
-            <!-- Employee ID Card -->
-            <div class="md3-card mb-4 employee-card" aria-label="Karta pracownicza">
-                <div class="employee-card__top">
-                    <div class="employee-card__logo">
-                        <span class="employee-card__logo-text">Quest</span>
-                    </div>
-                    <span class="employee-card__badge">AKTYWNY</span>
+            <!-- Timer Card -->
+            <div class="md3-card md3-card-primary mb-4">
+                <div class="flex-between mb-2">
+                    <span class="md3-label-large">Czas pracy</span>
+                    <span id="timerStatus" class="md3-label-small badge">Nieaktywny</span>
                 </div>
-                <div class="employee-card__body">
-                    <div class="employee-card__row">
-                        <div class="employee-card__field">
-                            <span class="employee-card__label">ID</span>
-                            <strong id="employeeCardIdValue" class="employee-card__value">—</strong>
-                        </div>
-                        <div class="employee-card__field">
-                            <span class="employee-card__label">Ważna do</span>
-                            <strong class="employee-card__value">03/28</strong>
-                        </div>
-                    </div>
-                </div>
-                <div class="employee-card__hologram" aria-hidden="true"></div>
-                <div class="employee-card__footer">
-                    <span class="employee-card__dept">Dział: Produkcja</span>
-                    <span class="employee-card__serial"># Quest-Wave</span>
+                <div id="timerDisplay" class="timer-huge">00:00:00</div>
+                <div class="flex-row gap-4 mt-4 justify-center align-center">
+                    <button id="timerPauseBtn" class="md3-fab md3-fab-secondary" disabled>
+                        <img src="icons/pause.svg" alt="Pauza">
+                    </button>
+                    <button id="timerStartBtn" class="md3-fab md3-fab-primary">
+                        <img src="icons/play.svg" alt="Start">
+                    </button>
+                    <button id="timerStopBtn" class="md3-fab md3-fab-tertiary" disabled>
+                        <img src="icons/stop.svg" alt="Stop">
+                    </button>
                 </div>
             </div>
 
@@ -633,7 +626,7 @@
             </div>
             <span class="label">Planer</span>
         </button>
-        <button class="nav-item" data-view="admin" hidden>
+        <button class="nav-item" data-view="admin">
             <div class="icon-container">
                 <img class="icon-outline" src="icons/admin.svg" alt="Admin">
                 <img class="icon-filled" src="icons/admin.svg" alt="Admin">
@@ -659,7 +652,15 @@
                 <label>Nazwa</label>
             </div>
 
-            <div class="profile-dev-row" hidden>
+            <div class="profile-dev-row">
+                <div class="profile-dev-info">
+                    <span class="md3-label-small">Tryb developerski</span>
+                    <span id="devModeStatus" class="md3-body-small text-secondary">Wyłączony</span>
+                </div>
+                <button id="devModeToggleBtn" class="md3-btn md3-btn-tonal">Włącz</button>
+            </div>
+
+            <div class="profile-dev-row">
                 <div class="profile-dev-info">
                     <span class="md3-label-small">Chmura</span>
                     <span class="md3-body-small text-secondary">Supabase</span>
@@ -682,6 +683,34 @@
     </div>
 
 
+
+    <!-- Developer Mode Auth Dialog -->
+    <div id="devAuthModal" class="md3-dialog-overlay" hidden>
+        <div class="md3-dialog md3-dialog--admin-auth">
+            <div class="admin-auth__header">
+                <div class="admin-auth__badge">
+                    <img src="icons/admin.svg" alt="">
+                </div>
+                <div class="admin-auth__titles">
+                    <h3 class="md3-headline-small">Tryb developerski</h3>
+                    <p class="md3-body-small text-secondary">Dostęp do funkcji testowych.</p>
+                </div>
+                <button id="devAuthCloseBtn" class="icon-btn admin-auth__close" aria-label="Zamknij">
+                    <img src="icons/cross.svg" alt="Zamknij">
+                </button>
+            </div>
+            <p class="md3-body-medium admin-auth__lead">Wpisz hasło, aby włączyć.</p>
+            <div class="md3-text-field width-full admin-auth__field">
+                <input id="devAuthInput" type="password" placeholder=" " autocomplete="current-password">
+                <label>Hasło</label>
+            </div>
+            <p id="devAuthError" class="md3-body-small text-error mt-2 admin-auth__error" hidden>Nieprawidłowe hasło.</p>
+            <div class="admin-auth__actions mt-3">
+                <button id="devAuthCancelBtn" class="md3-btn md3-btn-text">Anuluj</button>
+                <button id="devAuthOkBtn" class="md3-btn md3-btn-filled">Włącz</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Confirm Dialog -->
     <div id="confirmDialog" class="md3-dialog-overlay" hidden>
