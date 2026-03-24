@@ -119,23 +119,26 @@
         </div>
 
         <div id="viewMain" class="view-section">
-            <!-- Timer Card -->
-            <div class="md3-card md3-card-primary mb-4">
-                <div class="flex-between mb-2">
-                    <span class="md3-label-large">Czas pracy</span>
-                    <span id="timerStatus" class="md3-label-small badge">Nieaktywny</span>
+            <!-- Quest Card -->
+            <div class="md3-card quest-pass mb-4">
+                <div class="quest-pass__header">
+                    <span class="quest-pass__logo">Quest</span>
+                    <span class="quest-pass__status">Aktywny</span>
                 </div>
-                <div id="timerDisplay" class="timer-huge">00:00:00</div>
-                <div class="flex-row gap-4 mt-4 justify-center align-center">
-                    <button id="timerPauseBtn" class="md3-fab md3-fab-secondary" disabled>
-                        <img src="icons/pause.svg" alt="Pauza">
-                    </button>
-                    <button id="timerStartBtn" class="md3-fab md3-fab-primary">
-                        <img src="icons/play.svg" alt="Start">
-                    </button>
-                    <button id="timerStopBtn" class="md3-fab md3-fab-tertiary" disabled>
-                        <img src="icons/stop.svg" alt="Stop">
-                    </button>
+                <div class="quest-pass__meta">
+                    <div class="quest-pass__meta-col">
+                        <span class="quest-pass__label">ID</span>
+                        <strong class="quest-pass__value">Q-2931</strong>
+                    </div>
+                    <div class="quest-pass__meta-col quest-pass__meta-col--right">
+                        <span class="quest-pass__label">Ważna do</span>
+                        <strong class="quest-pass__value">03/28</strong>
+                    </div>
+                </div>
+                <div class="quest-pass__stripe" aria-hidden="true"></div>
+                <div class="quest-pass__footer">
+                    <span class="quest-pass__dept">Dział Produkcja</span>
+                    <span class="quest-pass__code">#7021 8849</span>
                 </div>
             </div>
 
