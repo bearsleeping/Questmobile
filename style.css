@@ -98,11 +98,6 @@ body.topbar-float {
   padding-top: 0;
 }
 
-/* Hide Admin tab for now */
-.nav-item[data-view="admin"] {
-  display: none !important;
-}
-
 /* Android: stabilize topbar to avoid viewport jumpiness */
 body.android {
   --topbar-safe-top: 0px;
@@ -199,121 +194,6 @@ body.android .topbar-spacer {
 .md3-card-primary {
   background-color: var(--md-sys-color-primary-container);
   color: var(--md-sys-color-on-primary-container);
-}
-
-/* Employee Card */
-.employee-card {
-  position: relative;
-  overflow: hidden;
-  padding: 20px;
-  border: none;
-  background: #101013;
-  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.55);
-}
-.employee-card::after {
-  content: "";
-  display: none;
-}
-.employee-card__top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-.employee-card__logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.employee-card__logo-text {
-  font-family: "Pacifico", cursive;
-  font-size: 22px;
-  font-weight: 400;
-  color: rgba(255, 255, 255, 0.92);
-  letter-spacing: 0.4px;
-}
-.employee-card__badge {
-  font-size: 10px;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: rgba(92, 255, 164, 0.18);
-  color: #9dffd0;
-  border: 1px solid rgba(92, 255, 164, 0.35);
-}
-.employee-card__body {
-  margin: 16px 0 12px;
-}
-.employee-card__row {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-}
-.employee-card__field {
-  min-width: 0;
-}
-.employee-card__label {
-  display: block;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: rgba(255, 255, 255, 0.55);
-}
-.employee-card__value {
-  display: block;
-  font-size: 13px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-}
-.employee-card__hologram {
-  height: 44px;
-  border-radius: 10px;
-  margin: 10px 0 6px;
-  background: linear-gradient(135deg, #7cf6ff, #a78bfa, #fca5a5, #fcd34d, #6ee7b7);
-  position: relative;
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
-    0 6px 16px rgba(0, 0, 0, 0.35);
-  overflow: hidden;
-}
-.employee-card__hologram::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    repeating-linear-gradient(
-      45deg,
-      rgba(255, 255, 255, 0.35),
-      rgba(255, 255, 255, 0.35) 6px,
-      rgba(255, 255, 255, 0.05) 6px,
-      rgba(255, 255, 255, 0.05) 12px
-    );
-  opacity: 0.35;
-}
-.employee-card__hologram::after {
-  content: "";
-  position: absolute;
-  inset: -40% -20%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.6), transparent 60%);
-  mix-blend-mode: screen;
-  opacity: 0.5;
-}
-.employee-card__footer {
-  margin-top: 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-.employee-card__dept {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.7);
-}
-.employee-card__serial {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
-  letter-spacing: 0.4px;
 }
 
 /* Buttons */
@@ -570,8 +450,8 @@ input, textarea {
   content: "";
   width: 10px;
   height: 6px;
-  border-left: 2px solid var(--md-sys-color-on-primary-container);
-  border-bottom: 2px solid var(--md-sys-color-on-primary-container);
+  border-left: 2px solid var(--md-sys-color-on-primary);
+  border-bottom: 2px solid var(--md-sys-color-on-primary);
   transform: rotate(-45deg) scale(0.7);
   opacity: 0;
   transition: opacity 0.15s ease, transform 0.15s ease;
@@ -1723,31 +1603,6 @@ input, textarea {
   align-items: flex-end;
   gap: 6px;
   flex-shrink: 0; /* Prevent actions from wrapping */
-}
-.planner-note__done {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  color: var(--md-sys-color-on-surface-variant);
-  cursor: pointer;
-  user-select: none;
-}
-.planner-note__done .md3-checkbox {
-  width: 18px;
-  height: 18px;
-  border-radius: 6px;
-}
-.planner-note.is-completed .planner-note__head strong {
-  text-decoration: line-through;
-  opacity: 0.7;
-}
-.planner-note.is-completed .planner-note__content {
-  opacity: 0.7;
-}
-.planner-day-item.is-completed .planner-day-item__title {
-  text-decoration: line-through;
-  opacity: 0.7;
 }
 .planner-note__badge {
   font-size: 10px;

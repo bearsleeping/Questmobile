@@ -192,8 +192,7 @@ let isAdminUnlocked = sessionStorage.getItem(adminUnlockKey) === "true";
 
 const devPassword = "2312";
 const devModeKey = "dev.mode.enabled.v2";
-let isDevModeEnabled = false;
-storage.removeItem(devModeKey);
+let isDevModeEnabled = storage.getItem(devModeKey) === "true";
 const devLevelOverrideKey = "dev.level.override.v2";
 let devLevelOverride = null;
 
@@ -206,9 +205,6 @@ const accountAvatarPreview = document.getElementById("accountAvatarPreview");
 const accountAvatarFileInput = document.getElementById("accountAvatarFileInput");
 const accountFileTriggerBtn = document.getElementById("accountFileTriggerBtn");
 const accountAvatarUrlInput = document.getElementById("accountAvatarUrlInput");
-const employeeCardIdValue = document.getElementById("employeeCardIdValue");
-const employeeCardExpiryValue = document.getElementById("employeeCardExpiryValue");
-const employeeCardSerial = document.getElementById("employeeCardSerial");
 const supabaseOpenBtn = document.getElementById("supabaseOpenBtn");
 const profileSyncBtn = document.getElementById("profileSyncBtn");
 const profileSyncStatus = document.getElementById("profileSyncStatus");
@@ -832,89 +828,30 @@ const initSupabase = () => {
   });
 };
 const joinDateKey = "profile.joinedAt.v1";
-const userIdKey = "profile.userId.v1";
-const userSerialKey = "profile.userSerial.v1";
 
 let communityCalendarOffset = 0;
 let currentCommunityUser = null;
 let communityOverviewOffset = 0;
 let communitySelectedDate = null;
 
-const getOrCreateUserId = () => {
-  const existing = storage.getItem(userIdKey);
-  if (existing && /^Q-\d{6}$/.test(existing)) return existing;
-  let id = "";
-  const array = new Uint32Array(1);
-  if (window.crypto && typeof window.crypto.getRandomValues === "function") {
-    window.crypto.getRandomValues(array);
-    id = `Q-${String(array[0] % 1000000).padStart(6, "0")}`;
-  } else {
-    id = `Q-${String(Math.floor(Math.random() * 1000000)).padStart(6, "0")}`;
-  }
-  storage.setItem(userIdKey, id);
-  return id;
-};
-
-const getOrCreateUserSerial = () => {
-  const existing = storage.getItem(userSerialKey);
-  if (existing && /^# \d{4} \d{4} \d{4}$/.test(existing)) return existing;
-  const array = new Uint32Array(2);
-  let partA = "";
-  let partB = "";
-  let partC = "";
-  if (window.crypto && typeof window.crypto.getRandomValues === "function") {
-    window.crypto.getRandomValues(array);
-    partA = String(array[0] % 10000).padStart(4, "0");
-    partB = String(array[1] % 10000).padStart(4, "0");
-    partC = String((array[0] + array[1]) % 10000).padStart(4, "0");
-  } else {
-    partA = String(Math.floor(Math.random() * 10000)).padStart(4, "0");
-    partB = String(Math.floor(Math.random() * 10000)).padStart(4, "0");
-    partC = String(Math.floor(Math.random() * 10000)).padStart(4, "0");
-  }
-  const serial = `# ${partA} ${partB} ${partC}`;
-  storage.setItem(userSerialKey, serial);
-  return serial;
-};
-
 const loadProfile = () => {
   const raw = storage.getItem(profileKey);
-  if (!raw) return { name: "Gość", avatarUrl: "", userId: getOrCreateUserId() };
+  if (!raw) return { name: "Gość", avatarUrl: "" };
   try {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object") {
-      return { name: "Gość", avatarUrl: "", userId: getOrCreateUserId() };
+      return { name: "Gość", avatarUrl: "" };
     }
     const name = typeof parsed.name === "string" ? parsed.name : "Gość";
     const avatarUrl = typeof parsed.avatarUrl === "string" ? parsed.avatarUrl : "";
-    const userId =
-      typeof parsed.userId === "string" && parsed.userId.trim()
-        ? parsed.userId
-        : getOrCreateUserId();
-    return { name, avatarUrl, userId };
+    return { name, avatarUrl };
   } catch {
-    return { name: "Gość", avatarUrl: "", userId: getOrCreateUserId() };
+    return { name: "Gość", avatarUrl: "" };
   }
 };
 
 const saveProfile = (profile) => {
-  const existing = loadProfile();
-  const userId = existing.userId || getOrCreateUserId();
-  const next = {
-    name: typeof profile?.name === "string" ? profile.name : existing.name || "Gość",
-    avatarUrl:
-      typeof profile?.avatarUrl === "string" ? profile.avatarUrl : existing.avatarUrl || "",
-    userId,
-  };
-  storage.setItem(profileKey, JSON.stringify(next));
-};
-
-const getProfileJoinDate = () => {
-  const raw = storage.getItem(joinDateKey);
-  if (raw) return raw;
-  const today = new Date().toISOString().slice(0, 10);
-  storage.setItem(joinDateKey, today);
-  return today;
+  storage.setItem(profileKey, JSON.stringify(profile));
 };
 
 const getDeviceId = () => {
@@ -990,17 +927,9 @@ const setAvatar = (el, avatarUrl, name) => {
 };
 
 const applyProfileToUI = () => {
-  const { name, avatarUrl, userId } = loadProfile();
+  const { name, avatarUrl } = loadProfile();
   if (mainProfileName) mainProfileName.textContent = name || "Gość";
   setAvatar(mainProfileAvatar, avatarUrl, name);
-  if (employeeCardIdValue) employeeCardIdValue.textContent = userId || "—";
-  if (employeeCardExpiryValue) {
-    const joinedAt = getProfileJoinDate();
-    employeeCardExpiryValue.textContent = formatExpiryFromJoin(joinedAt);
-  }
-  if (employeeCardSerial) {
-    employeeCardSerial.textContent = getSerialForUser();
-  }
 };
 
 const clampNumber = (value, min, max) => Math.min(Math.max(value, min), max);
@@ -2368,24 +2297,20 @@ const renderWeeklyChallenges = async () => {
   });
 };
 
+const getProfileJoinDate = () => {
+  const raw = storage.getItem(joinDateKey);
+  if (raw) return raw;
+  const today = new Date().toISOString().slice(0, 10);
+  storage.setItem(joinDateKey, today);
+  return today;
+};
+
 const formatDateShort = (dateStr) => {
   if (!dateStr) return "-";
   const date = new Date(`${dateStr}T00:00:00`);
   if (Number.isNaN(date.getTime())) return dateStr;
   return date.toLocaleDateString("pl-PL");
 };
-
-const formatExpiryFromJoin = (dateStr) => {
-  if (!dateStr) return "-";
-  const date = new Date(`${dateStr}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return "-";
-  date.setFullYear(date.getFullYear() + 5);
-  const mm = String(date.getMonth() + 1).padStart(2, "0");
-  const yy = String(date.getFullYear()).slice(-2);
-  return `${mm}/${yy}`;
-};
-
-const getSerialForUser = () => getOrCreateUserSerial();
 
 
 const buildEventMap = (events) => {
@@ -3791,7 +3716,6 @@ const productionRefreshBtn = document.getElementById("productionRefreshBtn");
 
 const plannerKey = "planner.notes.v1";
 const productionKey = "planner.production.v1";
-const plannerCompletedKey = "planner.completed.v1";
 
 const loadPlannerNotesLocal = () => {
   const raw = storage.getItem(plannerKey);
@@ -3807,42 +3731,6 @@ const loadPlannerNotesLocal = () => {
 
 const savePlannerNotesLocal = (notes) => {
   storage.setItem(plannerKey, JSON.stringify(notes));
-};
-
-const loadPlannerCompletedMap = () => {
-  const raw = storage.getItem(plannerCompletedKey);
-  if (!raw) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
-    return parsed;
-  } catch {
-    return {};
-  }
-};
-
-const savePlannerCompletedMap = (map) => {
-  storage.setItem(plannerCompletedKey, JSON.stringify(map));
-};
-
-const setPlannerCompleted = (noteId, isCompleted) => {
-  if (!noteId) return;
-  const map = loadPlannerCompletedMap();
-  if (isCompleted) {
-    map[noteId] = true;
-  } else {
-    delete map[noteId];
-  }
-  savePlannerCompletedMap(map);
-};
-
-const removePlannerCompleted = (noteId) => {
-  if (!noteId) return;
-  const map = loadPlannerCompletedMap();
-  if (map[noteId]) {
-    delete map[noteId];
-    savePlannerCompletedMap(map);
-  }
 };
 
 const loadPlannerNotes = () => {
@@ -4100,7 +3988,6 @@ const getPlannerNotesForDate = (dateKey, notes) =>
 const renderPlannerDayAgenda = () => {
   if (!plannerDayAgenda) return;
   const notes = loadPlannerNotes();
-  const completedMap = loadPlannerCompletedMap();
   const dateKey = plannerSelectedDate || getTodayKey();
 
   if (plannerSelectedDateLabel) {
@@ -4126,17 +4013,14 @@ const renderPlannerDayAgenda = () => {
   }
 
   items.forEach((note) => {
-    const isCompleted = !!completedMap[note.id];
     const li = document.createElement("li");
     li.className = "planner-day-item";
-    if (isCompleted) li.classList.add("is-completed");
     const title = document.createElement("div");
     title.className = "planner-day-item__title";
     title.textContent = note.title || "Bez tytułu";
     const meta = document.createElement("div");
     meta.className = "planner-day-item__meta";
-    const metaText = `Od ${formatDateLabel(note.startDate)} do ${formatDateLabel(note.endDate)}`;
-    meta.textContent = isCompleted ? `${metaText} • Wykonane` : metaText;
+    meta.textContent = `Od ${formatDateLabel(note.startDate)} do ${formatDateLabel(note.endDate)}`;
     li.appendChild(title);
     li.appendChild(meta);
     plannerDayAgenda.appendChild(li);
@@ -4227,7 +4111,6 @@ const renderPlannerCalendar = () => {
 const renderPlannerNotes = () => {
   if (!plannerNotesList) return;
   const notes = loadPlannerNotes();
-  const completedMap = loadPlannerCompletedMap();
   plannerNotesList.innerHTML = "";
 
   if (plannerStatus) {
@@ -4250,10 +4133,8 @@ const renderPlannerNotes = () => {
       return b.createdAt - a.createdAt;
     })
     .forEach((note) => {
-      const isCompleted = !!completedMap[note.id];
       const item = document.createElement("li");
       item.className = "planner-note";
-      if (isCompleted) item.classList.add("is-completed");
 
       const top = document.createElement("div");
       top.className = "planner-note__top";
@@ -4276,24 +4157,6 @@ const renderPlannerNotes = () => {
       const actions = document.createElement("div");
       actions.className = "planner-note__actions";
 
-      const doneWrap = document.createElement("label");
-      doneWrap.className = "planner-note__done";
-      const doneCheckbox = document.createElement("input");
-      doneCheckbox.type = "checkbox";
-      doneCheckbox.className = "md3-checkbox";
-      doneCheckbox.checked = isCompleted;
-      doneCheckbox.addEventListener("change", () => {
-        setPlannerCompleted(note.id, doneCheckbox.checked);
-        renderPlannerNotes();
-        renderPlannerCalendar();
-        renderPlannerDayAgenda();
-      });
-      const doneText = document.createElement("span");
-      doneText.textContent = "Wykonane";
-      doneWrap.appendChild(doneCheckbox);
-      doneWrap.appendChild(doneText);
-      actions.appendChild(doneWrap);
-
       if (note.pinned) {
         const badge = document.createElement("span");
         badge.className = "planner-note__badge";
@@ -4313,7 +4176,6 @@ const renderPlannerNotes = () => {
         removeBtn.addEventListener("click", async () => {
           const ok = await showConfirmDialog("Usunąć to zadanie?", "Usuń zadanie");
           if (!ok) return;
-          removePlannerCompleted(note.id);
           if (plannerUsesSupabase()) {
             await deletePlannerNoteSupabase(note.id);
             return;
@@ -5473,3 +5335,4 @@ loadCommunityConfig().then(() => {
   renderCommunityOverview();
   renderCommunityList();
 });
+
