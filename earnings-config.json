@@ -1,0 +1,7 @@
+{
+  "defaultRate": 30,
+  "netFactor": 0.88,
+  "netFactorUnder26": 1,
+  "currency": "PLN",
+  "rateLabelSuffix": "PLN/h brutto"
+}

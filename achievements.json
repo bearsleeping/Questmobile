@@ -1,0 +1,72 @@
+[
+  {
+    "id": "sample-1",
+    "title": "Pierwsza Zmiana",
+    "desc": "Przepracuj lacznie 10 godzin.",
+    "rarity": "POSPOLITE",
+    "exp": 30,
+    "unlocked": false,
+    "criteria": { "type": "total_hours", "target": 10 },
+    "progress": null
+  },
+  {
+    "id": "sample-2",
+    "title": "Sciezka Gildii",
+    "desc": "Wbij poziom 8 profilu.",
+    "rarity": "POSPOLITE",
+    "exp": 35,
+    "unlocked": false,
+    "criteria": { "type": "level", "target": 8 },
+    "progress": null
+  },
+  {
+    "id": "sample-4",
+    "title": "Miesieczny Rytm",
+    "desc": "Wypracuj 40h w obecnym miesiacu.",
+    "rarity": "NIEPOSPOLITE",
+    "exp": 70,
+    "unlocked": false,
+    "criteria": { "type": "month_hours", "target": 40 },
+    "progress": "Odblokowane | +70 EXP"
+  },
+  {
+    "id": "sample-5",
+    "title": "Rzemieslnik",
+    "desc": "Przepracuj lacznie 100 godzin.",
+    "rarity": "RZADKIE",
+    "exp": 110,
+    "unlocked": false,
+    "criteria": { "type": "total_hours", "target": 100 },
+    "progress": null
+  },
+  {
+    "id": "sample-6",
+    "title": "Seria 14",
+    "desc": "Utrzymaj serie 14 dni pracy.",
+    "rarity": "NIEPOSPOLITE",
+    "exp": 90,
+    "unlocked": false,
+    "criteria": { "type": "streak", "target": 14 },
+    "progress": "Seria 3/14"
+  },
+  {
+    "id": "sample-7",
+    "title": "Zawodowiec",
+    "desc": "Przepracuj lacznie 250 godzin.",
+    "rarity": "RZADKIE",
+    "exp": 160,
+    "unlocked": false,
+    "criteria": { "type": "total_hours", "target": 250 },
+    "progress": null
+  },
+  {
+    "id": "sample-8",
+    "title": "Mistrz Miesiaca",
+    "desc": "Wypracuj 120h w obecnym miesiacu.",
+    "rarity": "EPICKIE",
+    "exp": 240,
+    "unlocked": false,
+    "criteria": { "type": "month_hours", "target": 120 },
+    "progress": null
+  }
+]
