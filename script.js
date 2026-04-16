@@ -79,52 +79,63 @@ const dataRefreshBar = document.getElementById("dataRefreshBar");
 let dataRefreshActiveCount = 0;
 let dataRefreshHideTimer = null;
 const appSplash = document.getElementById("appSplash");
-const appSplashStartedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
-const appSplashMinDuration = 5000;
-const appSplashMaxDuration = 6500;
-let appSplashReleased = false;
-let appSplashCompleted = false;
+const appRoot = document.getElementById("appRoot");
+const appBootStartedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
+const appBootMinDuration = 5000;
+const appBootMaxDuration = 5200;
+let appBootReleased = false;
+let appBootCompleted = false;
 
-const completeAppSplash = () => {
-  if (appSplashCompleted) return;
-  appSplashCompleted = true;
+const completeAppBoot = () => {
+  if (appBootCompleted) return;
+  appBootCompleted = true;
 
-  if (!appSplash) return;
-
-  const hideSplash = () => {
-    appSplash.hidden = true;
-    appSplash.setAttribute("aria-hidden", "true");
-    appSplash.removeEventListener("transitionend", hideSplash);
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        document.body?.classList.remove("app-booting");
-      });
-    });
+  const finalizeBoot = () => {
+    if (appSplash) {
+      appSplash.hidden = true;
+      appSplash.setAttribute("aria-hidden", "true");
+    }
+    document.body?.classList.remove("app-booting");
   };
 
-  appSplash.addEventListener("transitionend", hideSplash);
-  appSplash.classList.add("is-exiting");
-  window.setTimeout(hideSplash, 900);
+  if (appRoot) {
+    appRoot.hidden = false;
+    appRoot.setAttribute("aria-hidden", "false");
+  }
+
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      document.body?.classList.add("app-ready");
+      if (!appSplash) {
+        finalizeBoot();
+        return;
+      }
+
+      appSplash.addEventListener("transitionend", finalizeBoot, { once: true });
+      appSplash.classList.add("is-exiting");
+      window.setTimeout(finalizeBoot, 260);
+    });
+  });
 };
 
-const releaseAppSplash = () => {
-  if (appSplashReleased) return;
-  appSplashReleased = true;
+const releaseAppBoot = () => {
+  if (appBootReleased) return;
+  appBootReleased = true;
   const now = typeof performance !== "undefined" ? performance.now() : Date.now();
-  const elapsed = now - appSplashStartedAt;
-  const remaining = Math.max(0, appSplashMinDuration - elapsed);
+  const elapsed = now - appBootStartedAt;
+  const remaining = Math.max(0, appBootMinDuration - elapsed);
   window.setTimeout(() => {
-    window.requestAnimationFrame(completeAppSplash);
+    window.requestAnimationFrame(completeAppBoot);
   }, remaining);
 };
 
 if (document.readyState === "complete") {
-  releaseAppSplash();
+  releaseAppBoot();
 } else {
-  window.addEventListener("load", releaseAppSplash, { once: true });
+  window.addEventListener("load", releaseAppBoot, { once: true });
 }
 
-window.setTimeout(releaseAppSplash, appSplashMaxDuration);
+window.setTimeout(releaseAppBoot, appBootMaxDuration);
 
 const plannerUsesSupabase = () => Boolean(supabaseEnabled && supabaseClient && supabaseUser);
 const productionUsesSupabase = () => Boolean(supabaseEnabled && supabaseClient && supabaseUser);

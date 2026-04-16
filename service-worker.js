@@ -1,4 +1,4 @@
-const CACHE_VERSION = "v1.1.0";
+const CACHE_VERSION = "v1.2.0";
 const STATIC_CACHE = `worklog-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `worklog-runtime-${CACHE_VERSION}`;
 const OFFLINE_URL = "./offline.html";
@@ -17,8 +17,28 @@ const STATIC_ASSETS = [
   "./manifest.webmanifest",
   "./offline.html",
   "./assets/icon.svg",
+  "./assets/icons/icon-120.png",
+  "./assets/icons/icon-152.png",
+  "./assets/icons/icon-167.png",
   "./assets/icons/icon-192.png",
-  "./assets/icons/icon-512.png"
+  "./assets/icons/icon-180.png",
+  "./assets/icons/icon-512.png",
+  "./assets/splash/splash-750x1334.png",
+  "./assets/splash/splash-828x1792.png",
+  "./assets/splash/splash-1080x2340.png",
+  "./assets/splash/splash-1125x2436.png",
+  "./assets/splash/splash-1170x2532.png",
+  "./assets/splash/splash-1179x2556.png",
+  "./assets/splash/splash-1242x2208.png",
+  "./assets/splash/splash-1242x2688.png",
+  "./assets/splash/splash-1284x2778.png",
+  "./assets/splash/splash-1290x2796.png",
+  "./assets/splash/splash-1488x2266.png",
+  "./assets/splash/splash-1536x2048.png",
+  "./assets/splash/splash-1620x2160.png",
+  "./assets/splash/splash-1668x2224.png",
+  "./assets/splash/splash-1668x2388.png",
+  "./assets/splash/splash-2048x2732.png"
 ];
 
 self.addEventListener("install", (event) => {
@@ -152,5 +172,3 @@ self.addEventListener("fetch", (event) => {
       .catch(() => caches.match(request))
   );
 });
-
-
