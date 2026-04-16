@@ -92,11 +92,14 @@ const completeAppSplash = () => {
   if (!appSplash) return;
 
   const hideSplash = () => {
-    document.body?.classList.remove("app-booting");
-    document.body?.classList.add("app-ready");
     appSplash.hidden = true;
     appSplash.setAttribute("aria-hidden", "true");
     appSplash.removeEventListener("transitionend", hideSplash);
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        document.body?.classList.remove("app-booting");
+      });
+    });
   };
 
   appSplash.addEventListener("transitionend", hideSplash);

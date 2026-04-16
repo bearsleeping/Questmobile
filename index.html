@@ -83,6 +83,15 @@
             transform: translateY(-2px);
         }
 
+        body.splash-font-pending .app-splash__emblem-core {
+            opacity: 0;
+        }
+
+        body.splash-font-ready .app-splash__emblem-core {
+            opacity: 1;
+            transition: opacity 0.18s ease;
+        }
+
         .app-splash__spinner {
             position: relative;
             width: 34px;
@@ -123,7 +132,7 @@
     </style>
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="app-booting">
+<body class="app-booting splash-font-pending">
     <div id="appSplash" class="app-splash" aria-hidden="true">
         <div class="app-splash__content">
             <div class="app-splash__emblem">
@@ -1001,6 +1010,37 @@
 
     <script src="supabase-config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        (function () {
+            var markSplashFontReady = function () {
+                if (!document.body) return;
+                document.body.classList.remove("splash-font-pending");
+                document.body.classList.add("splash-font-ready");
+            };
+
+            var waitForBody = function (callback) {
+                if (document.body) {
+                    callback();
+                    return;
+                }
+                requestAnimationFrame(function () {
+                    waitForBody(callback);
+                });
+            };
+
+            waitForBody(function () {
+                if (!document.fonts || !document.fonts.load) {
+                    markSplashFontReady();
+                    return;
+                }
+
+                Promise.race([
+                    document.fonts.load('1em "Pacifico"'),
+                    new Promise(function (resolve) { setTimeout(resolve, 1200); })
+                ]).finally(markSplashFontReady);
+            });
+        })();
+    </script>
     <script src="script.js"></script>
 </body>
 </html>

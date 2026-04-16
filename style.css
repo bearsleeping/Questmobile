@@ -139,21 +139,6 @@ body.app-booting .data-refresh-bar {
   pointer-events: none;
 }
 
-body.app-ready > :not(.app-splash) {
-  animation: appBootReveal 0.45s ease;
-}
-
-@keyframes appBootReveal {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 /* Android: stabilize topbar to avoid viewport jumpiness */
 body.android {
   --topbar-safe-top: 0px;
