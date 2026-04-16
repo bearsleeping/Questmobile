@@ -59,9 +59,84 @@ let supabasePlannerLoading = false;
 let supabaseProductionEntries = null;
 let supabaseProductionLoading = false;
 let authAudioContext = null;
+const supabaseWriteQueue = new Map();
+const supabaseRemoveQueue = new Set();
+const supabaseSyncDebounceMs = 700;
+let supabaseSyncTimer = null;
+let supabaseSyncInFlight = null;
+let supabaseLastRefreshAt = 0;
+let supabaseCommunitySyncTimer = null;
+let supabaseCommunitySyncInFlight = null;
+const supabaseCommunitySyncDebounceMs = 900;
+let supabaseRealtimeChannel = null;
+let supabaseRealtimeRefreshTimer = null;
+const supabaseRealtimePending = new Set();
+const supabaseRealtimeDebounceMs = 450;
+const dataRefreshBar = document.getElementById("dataRefreshBar");
+let dataRefreshActiveCount = 0;
+let dataRefreshHideTimer = null;
+const appSplash = document.getElementById("appSplash");
+const appSplashStartedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
+const appSplashMinDuration = 5000;
+const appSplashMaxDuration = 6500;
+let appSplashReleased = false;
+let appSplashCompleted = false;
+
+const completeAppSplash = () => {
+  if (appSplashCompleted) return;
+  appSplashCompleted = true;
+  document.body?.classList.remove("app-booting");
+  document.body?.classList.add("app-ready");
+
+  if (!appSplash) return;
+
+  const hideSplash = () => {
+    appSplash.hidden = true;
+    appSplash.setAttribute("aria-hidden", "true");
+    appSplash.removeEventListener("transitionend", hideSplash);
+  };
+
+  appSplash.addEventListener("transitionend", hideSplash);
+  appSplash.classList.add("is-exiting");
+  window.setTimeout(hideSplash, 900);
+};
+
+const releaseAppSplash = () => {
+  if (appSplashReleased) return;
+  appSplashReleased = true;
+  const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+  const elapsed = now - appSplashStartedAt;
+  const remaining = Math.max(0, appSplashMinDuration - elapsed);
+  window.setTimeout(() => {
+    window.requestAnimationFrame(completeAppSplash);
+  }, remaining);
+};
+
+if (document.readyState === "complete") {
+  releaseAppSplash();
+} else {
+  window.addEventListener("load", releaseAppSplash, { once: true });
+}
+
+window.setTimeout(releaseAppSplash, appSplashMaxDuration);
 
 const plannerUsesSupabase = () => Boolean(supabaseEnabled && supabaseClient && supabaseUser);
 const productionUsesSupabase = () => Boolean(supabaseEnabled && supabaseClient && supabaseUser);
+
+const beginDataRefreshIndicator = () => {
+  dataRefreshActiveCount += 1;
+  window.clearTimeout(dataRefreshHideTimer);
+  dataRefreshHideTimer = null;
+  dataRefreshBar?.classList.add("is-active");
+};
+
+const endDataRefreshIndicator = () => {
+  dataRefreshActiveCount = Math.max(0, dataRefreshActiveCount - 1);
+  if (dataRefreshActiveCount > 0) return;
+  dataRefreshHideTimer = window.setTimeout(() => {
+    dataRefreshBar?.classList.remove("is-active");
+  }, 180);
+};
 
 const getAuthAudioContext = () => {
   const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -381,6 +456,14 @@ const hasLocalUserData = () => {
 };
 
 const handleSupabaseUserSwitch = (nextUserId) => {
+  supabaseWriteQueue.clear();
+  supabaseRemoveQueue.clear();
+  window.clearTimeout(supabaseSyncTimer);
+  supabaseSyncTimer = null;
+  window.clearTimeout(supabaseCommunitySyncTimer);
+  supabaseCommunitySyncTimer = null;
+  teardownSupabaseRealtime();
+
   if (!nextUserId) return;
   const prevUserId = storage.getItem(supabaseLastUserKey);
   if (!prevUserId) {
@@ -478,6 +561,7 @@ const fetchCommunityUsersFromSupabase = async () => {
   if (!supabaseEnabled || !supabaseClient || !supabaseUser) return false;
   if (supabaseCommunityLoading) return false;
   supabaseCommunityLoading = true;
+  beginDataRefreshIndicator();
   try {
     const { data, error } = await supabaseClient
       .from(supabaseCommunityTable)
@@ -485,6 +569,7 @@ const fetchCommunityUsersFromSupabase = async () => {
       .order("updated_at", { ascending: false })
       .limit(200);
     supabaseCommunityLoading = false;
+    endDataRefreshIndicator();
     if (error) {
       setSupabaseStatus("Błąd pobierania społeczności.", true);
       return false;
@@ -493,6 +578,7 @@ const fetchCommunityUsersFromSupabase = async () => {
     return true;
   } catch {
     supabaseCommunityLoading = false;
+    endDataRefreshIndicator();
     setSupabaseStatus("Błąd pobierania społeczności.", true);
     return false;
   }
@@ -500,10 +586,12 @@ const fetchCommunityUsersFromSupabase = async () => {
 
 const refreshCommunityFromSupabase = () => {
   if (!supabaseEnabled || !supabaseClient || !supabaseUser) return;
-  fetchCommunityUsersFromSupabase().then((updated) => {
-    if (!updated) return;
+  return fetchCommunityUsersFromSupabase().then((updated) => {
+    if (!updated) return false;
     renderCommunityList();
     renderCommunityOverview();
+    syncOpenCommunityProfile();
+    return true;
   });
 };
 
@@ -522,6 +610,7 @@ const fetchProductionFromSupabase = async (dateFilter = "") => {
   if (!productionUsesSupabase()) return false;
   if (supabaseProductionLoading) return false;
   supabaseProductionLoading = true;
+  beginDataRefreshIndicator();
   try {
     let query = supabaseClient
       .from(supabaseProductionTable)
@@ -532,6 +621,7 @@ const fetchProductionFromSupabase = async (dateFilter = "") => {
     }
     const { data, error } = await query;
     supabaseProductionLoading = false;
+    endDataRefreshIndicator();
     if (error) {
       setSupabaseStatus("Błąd pobierania produkcji.", true);
       return false;
@@ -540,6 +630,7 @@ const fetchProductionFromSupabase = async (dateFilter = "") => {
     return true;
   } catch {
     supabaseProductionLoading = false;
+    endDataRefreshIndicator();
     setSupabaseStatus("Błąd pobierania produkcji.", true);
     return false;
   }
@@ -547,8 +638,11 @@ const fetchProductionFromSupabase = async (dateFilter = "") => {
 
 const refreshProductionFromSupabase = (dateFilter = "") => {
   if (!productionUsesSupabase()) return;
-  fetchProductionFromSupabase(dateFilter).then(() => {
-    renderProductionList();
+  return fetchProductionFromSupabase(dateFilter).then((updated) => {
+    if (updated) {
+      renderProductionList();
+    }
+    return updated;
   });
 };
 
@@ -626,39 +720,240 @@ const maybeShowSupabaseAuthView = () => {
 const handleSupabaseWrite = async (key, value) => {
   if (!supabaseEnabled || !supabaseClient || !supabaseUser || supabaseSyncSuspended) return;
   if (!supabaseSyncKeys.has(key)) return;
-  try {
-    const now = new Date().toISOString();
-    const payload = { user_id: supabaseUser.id, key, value: String(value ?? ""), updated_at: now };
-    const { error } = await supabaseClient
-      .from(supabaseSyncTable)
-      .upsert(payload, { onConflict: "user_id,key" });
-    if (error) {
-      setSupabaseStatus("Błąd zapisu do chmury.", true);
-    }
-  } catch {
-    setSupabaseStatus("Błąd zapisu do chmury.", true);
-  }
+  supabaseRemoveQueue.delete(key);
+  supabaseWriteQueue.set(key, String(value ?? ""));
+  scheduleSupabaseSync();
 };
 
 const handleSupabaseRemove = async (key) => {
   if (!supabaseEnabled || !supabaseClient || !supabaseUser || supabaseSyncSuspended) return;
   if (!supabaseSyncKeys.has(key)) return;
-  try {
-    const { error } = await supabaseClient
-      .from(supabaseSyncTable)
-      .delete()
-      .eq("user_id", supabaseUser.id)
-      .eq("key", key);
-    if (error) {
-      setSupabaseStatus("Błąd usuwania z chmury.", true);
+  supabaseWriteQueue.delete(key);
+  supabaseRemoveQueue.add(key);
+  scheduleSupabaseSync();
+};
+
+const scheduleSupabaseSync = (delay = supabaseSyncDebounceMs) => {
+  window.clearTimeout(supabaseSyncTimer);
+  supabaseSyncTimer = window.setTimeout(() => {
+    flushSupabaseSync();
+  }, delay);
+};
+
+const flushSupabaseSync = async () => {
+  if (!supabaseEnabled || !supabaseClient || !supabaseUser || supabaseSyncSuspended) return false;
+  if (supabaseSyncInFlight) return supabaseSyncInFlight;
+
+  const queuedWrites = Array.from(supabaseWriteQueue.entries());
+  const queuedRemovals = Array.from(supabaseRemoveQueue.values());
+  if (!queuedWrites.length && !queuedRemovals.length) return true;
+
+  const queuedUserId = supabaseUser.id;
+  const now = new Date().toISOString();
+  const upsertPayload = queuedWrites.map(([key, value]) => ({
+    user_id: queuedUserId,
+    key,
+    value,
+    updated_at: now,
+  }));
+
+  queuedWrites.forEach(([key]) => supabaseWriteQueue.delete(key));
+  queuedRemovals.forEach((key) => supabaseRemoveQueue.delete(key));
+  window.clearTimeout(supabaseSyncTimer);
+  supabaseSyncTimer = null;
+  beginDataRefreshIndicator();
+
+  supabaseSyncInFlight = (async () => {
+    try {
+      if (upsertPayload.length) {
+        const { error } = await supabaseClient
+          .from(supabaseSyncTable)
+          .upsert(upsertPayload, { onConflict: "user_id,key" });
+        if (error) throw error;
+      }
+
+      if (queuedRemovals.length) {
+        const { error } = await supabaseClient
+          .from(supabaseSyncTable)
+          .delete()
+          .eq("user_id", queuedUserId)
+          .in("key", queuedRemovals);
+        if (error) throw error;
+      }
+
+      return true;
+    } catch {
+      queuedWrites.forEach(([key, value]) => {
+        if (!supabaseWriteQueue.has(key)) {
+          supabaseWriteQueue.set(key, value);
+        }
+      });
+      queuedRemovals.forEach((key) => {
+        if (!supabaseWriteQueue.has(key)) {
+          supabaseRemoveQueue.add(key);
+        }
+      });
+      setSupabaseStatus("Błąd zapisu do chmury.", true);
+      return false;
+    } finally {
+      supabaseSyncInFlight = null;
+      endDataRefreshIndicator();
     }
-  } catch {
-    setSupabaseStatus("Błąd usuwania z chmury.", true);
+  })();
+
+  return supabaseSyncInFlight;
+};
+
+const flushCommunitySync = async () => {
+  if (!supabaseEnabled || !supabaseClient || !supabaseUser?.id) return false;
+  if (supabaseCommunitySyncInFlight) return supabaseCommunitySyncInFlight;
+
+  const payload = buildCommunityPayload();
+  if (!payload.user_id) return false;
+
+  window.clearTimeout(supabaseCommunitySyncTimer);
+  supabaseCommunitySyncTimer = null;
+  beginDataRefreshIndicator();
+
+  supabaseCommunitySyncInFlight = supabaseClient
+    .from(supabaseCommunityTable)
+    .upsert(payload, { onConflict: "user_id" })
+    .then(({ error }) => {
+      if (error) {
+        setSupabaseStatus("Błąd zapisu społeczności.", true);
+        return false;
+      }
+      return true;
+    })
+    .finally(() => {
+      supabaseCommunitySyncInFlight = null;
+      endDataRefreshIndicator();
+    });
+
+  return supabaseCommunitySyncInFlight;
+};
+
+const scheduleCommunitySync = (delay = supabaseCommunitySyncDebounceMs) => {
+  if (!supabaseEnabled || !supabaseClient || !supabaseUser?.id) return;
+  window.clearTimeout(supabaseCommunitySyncTimer);
+  supabaseCommunitySyncTimer = window.setTimeout(() => {
+    flushCommunitySync();
+  }, delay);
+};
+
+const refreshSupabaseData = async (force = false) => {
+  if (!supabaseEnabled || !supabaseClient || !supabaseUser || !navigator.onLine) return false;
+  const now = Date.now();
+  if (!force && now - supabaseLastRefreshAt < 15_000) return false;
+  supabaseLastRefreshAt = now;
+
+  await Promise.allSettled([
+    flushSupabaseSync(),
+    flushCommunitySync(),
+    pullSupabaseToLocal(),
+    refreshCommunityFromSupabase(),
+    refreshPlannerFromSupabase({ syncLocal: true }),
+    refreshProductionFromSupabase(getTodayKey()),
+  ]);
+
+  return true;
+};
+
+const flushSupabaseRealtimeRefresh = async () => {
+  if (!supabaseEnabled || !supabaseClient || !supabaseUser) return false;
+
+  const pending = new Set(supabaseRealtimePending);
+  supabaseRealtimePending.clear();
+  window.clearTimeout(supabaseRealtimeRefreshTimer);
+  supabaseRealtimeRefreshTimer = null;
+
+  if (!pending.size) return true;
+
+  const tasks = [];
+
+  if (pending.has("user_storage")) {
+    tasks.push(pullSupabaseToLocal());
   }
+  if (pending.has("community")) {
+    tasks.push(refreshCommunityFromSupabase());
+  }
+  if (pending.has("planner")) {
+    tasks.push(refreshPlannerFromSupabase());
+  }
+  if (pending.has("production")) {
+    tasks.push(refreshProductionFromSupabase(getTodayKey()));
+  }
+
+  await Promise.allSettled(tasks);
+  return true;
+};
+
+const scheduleSupabaseRealtimeRefresh = (target, delay = supabaseRealtimeDebounceMs) => {
+  if (!target) return;
+  supabaseRealtimePending.add(target);
+  window.clearTimeout(supabaseRealtimeRefreshTimer);
+  supabaseRealtimeRefreshTimer = window.setTimeout(() => {
+    flushSupabaseRealtimeRefresh();
+  }, delay);
+};
+
+const teardownSupabaseRealtime = () => {
+  supabaseRealtimePending.clear();
+  window.clearTimeout(supabaseRealtimeRefreshTimer);
+  supabaseRealtimeRefreshTimer = null;
+  if (supabaseRealtimeChannel && supabaseClient) {
+    supabaseClient.removeChannel(supabaseRealtimeChannel);
+  }
+  supabaseRealtimeChannel = null;
+};
+
+const initSupabaseRealtime = () => {
+  if (!supabaseEnabled || !supabaseClient || !supabaseUser?.id) return;
+
+  teardownSupabaseRealtime();
+
+  const userFilter = `user_id=eq.${supabaseUser.id}`;
+  supabaseRealtimeChannel = supabaseClient
+    .channel(`quest-realtime-${supabaseUser.id}`)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: supabaseSyncTable, filter: userFilter },
+      () => {
+        scheduleSupabaseRealtimeRefresh("user_storage");
+      }
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: supabaseCommunityTable },
+      () => {
+        scheduleSupabaseRealtimeRefresh("community");
+      }
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: supabasePlannerTable },
+      () => {
+        scheduleSupabaseRealtimeRefresh("planner");
+      }
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: supabaseProductionTable },
+      () => {
+        scheduleSupabaseRealtimeRefresh("production");
+      }
+    )
+    .subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        setProfileSyncStatus("Realtime aktywny");
+      }
+    });
 };
 
 const pushAllToSupabase = async () => {
   if (!supabaseEnabled || !supabaseClient || !supabaseUser) return;
+  supabaseWriteQueue.clear();
+  supabaseRemoveQueue.clear();
   const now = new Date().toISOString();
   const payload = [];
   supabaseSyncKeys.forEach((key) => {
@@ -667,21 +962,35 @@ const pushAllToSupabase = async () => {
     payload.push({ user_id: supabaseUser.id, key, value: String(value), updated_at: now });
   });
   if (!payload.length) return;
-  const { error } = await supabaseClient
-    .from(supabaseSyncTable)
-    .upsert(payload, { onConflict: "user_id,key" });
-  if (error) {
-    setSupabaseStatus("Błąd synchronizacji danych.", true);
+  beginDataRefreshIndicator();
+  try {
+    const { error } = await supabaseClient
+      .from(supabaseSyncTable)
+      .upsert(payload, { onConflict: "user_id,key" });
+    if (error) {
+      setSupabaseStatus("Błąd synchronizacji danych.", true);
+    }
+  } finally {
+    endDataRefreshIndicator();
   }
 };
 
 const pullSupabaseToLocal = async () => {
   if (!supabaseEnabled || !supabaseClient || !supabaseUser) return;
   suppressRankToast(2500);
-  const { data, error } = await supabaseClient
-    .from(supabaseSyncTable)
-    .select("user_id,key,value,updated_at")
-    .eq("user_id", supabaseUser.id);
+  beginDataRefreshIndicator();
+  let data;
+  let error;
+  try {
+    const response = await supabaseClient
+      .from(supabaseSyncTable)
+      .select("user_id,key,value,updated_at")
+      .eq("user_id", supabaseUser.id);
+    data = response.data;
+    error = response.error;
+  } finally {
+    endDataRefreshIndicator();
+  }
   if (error) {
     setSupabaseStatus("Błąd pobierania danych z chmury.", true);
     return;
@@ -764,10 +1073,14 @@ const signUpSupabase = async () => {
 const signOutSupabase = async () => {
   if (!supabaseEnabled || !supabaseClient) return;
   setSupabaseStatus("Wylogowywanie...");
+  await flushSupabaseSync();
+  await flushCommunitySync();
+  teardownSupabaseRealtime();
   await supabaseClient.auth.signOut();
   supabaseUser = null;
   supabasePlannerNotes = null;
   supabaseProductionEntries = null;
+  supabaseCommunityUsers = null;
   updateSupabaseAuthUI();
   playLogoutSound();
   setSupabaseStatus("Wylogowano.");
@@ -807,10 +1120,8 @@ const initSupabase = () => {
     handleSupabaseUserSwitch(supabaseUser?.id);
     updateSupabaseAuthUI();
     if (supabaseUser) {
-      pullSupabaseToLocal();
-      refreshCommunityFromSupabase();
-      refreshPlannerFromSupabase({ syncLocal: true });
-      refreshProductionFromSupabase(getTodayKey());
+      initSupabaseRealtime();
+      refreshSupabaseData(true);
     }
     maybeShowSupabaseAuthView();
   });
@@ -819,10 +1130,8 @@ const initSupabase = () => {
     handleSupabaseUserSwitch(supabaseUser?.id);
     updateSupabaseAuthUI();
     if (supabaseUser) {
-      pullSupabaseToLocal();
-      refreshCommunityFromSupabase();
-      refreshPlannerFromSupabase({ syncLocal: true });
-      refreshProductionFromSupabase(getTodayKey());
+      initSupabaseRealtime();
+      refreshSupabaseData();
     }
     maybeShowSupabaseAuthView();
   });
@@ -2566,14 +2875,7 @@ const purgeCommunityDemoData = () => {
 const upsertCurrentUserToCommunity = () => {
   const deviceId = getDeviceId();
   if (supabaseEnabled && supabaseClient && supabaseUser?.id) {
-    const payload = buildCommunityPayload();
-    if (!payload.user_id) return;
-    supabaseClient
-      .from(supabaseCommunityTable)
-      .upsert(payload, { onConflict: "user_id" })
-      .then(({ error }) => {
-        if (error) setSupabaseStatus("Błąd zapisu społeczności.", true);
-      });
+    scheduleCommunitySync();
     return;
   }
 
@@ -2736,6 +3038,14 @@ const openCommunityProfile = (user) => {
   communityProfileModal.hidden = false;
 };
 
+const syncOpenCommunityProfile = () => {
+  if (!currentCommunityUser || !communityProfileModal || communityProfileModal.hidden) return;
+  const users = getCommunityUsers();
+  const nextUser = users.find((user) => user?.id && user.id === currentCommunityUser.id);
+  if (!nextUser) return;
+  openCommunityProfile(nextUser);
+};
+
 const renderCommunityList = () => {
   if (!communityList || !communityEmpty) return;
   const users = getCommunityUsers();
@@ -2783,7 +3093,6 @@ const renderCommunityList = () => {
 const refreshAll = () => {
   updateAchievementsFromStats();
   upsertCurrentUserToCommunity();
-  refreshCommunityFromSupabase();
   renderEntries();
   computeStats();
   updateEarningsForecast();
@@ -2792,6 +3101,9 @@ const refreshAll = () => {
   updateRankUI();
   renderWeekBars();
   renderAchievements();
+  renderCommunityOverview();
+  renderCommunityList();
+  syncOpenCommunityProfile();
   renderProductionList();
   if (typeof window.renderCalendar === "function") {
     window.renderCalendar();
@@ -3618,12 +3930,18 @@ const refreshRemoteData = async (force = false) => {
 window.addEventListener("focus", () => {
   refreshRemoteData();
   requestSwUpdate();
+  if (supabaseUser) initSupabaseRealtime();
+  refreshSupabaseData();
 });
 
 window.addEventListener("online", () => {
   refreshRemoteData(true);
   requestSwUpdate();
   updateConnectionIndicator();
+  if (supabaseUser) initSupabaseRealtime();
+  flushSupabaseSync();
+  flushCommunitySync();
+  refreshSupabaseData(true);
 });
 
 window.addEventListener("offline", () => {
@@ -3634,7 +3952,18 @@ document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
     refreshRemoteData();
     requestSwUpdate();
+    if (supabaseUser) initSupabaseRealtime();
+    refreshSupabaseData();
+    return;
   }
+
+  flushSupabaseSync();
+  flushCommunitySync();
+});
+
+window.addEventListener("pagehide", () => {
+  flushSupabaseSync();
+  flushCommunitySync();
 });
 
 window.addEventListener("beforeinstallprompt", (event) => {
@@ -3791,6 +4120,7 @@ const buildPlannerPayload = (note) => {
 const fetchPlannerNotesFromSupabase = async () => {
   if (!plannerUsesSupabase() || supabasePlannerLoading) return false;
   supabasePlannerLoading = true;
+  beginDataRefreshIndicator();
   try {
     const { data, error } = await supabaseClient
       .from(supabasePlannerTable)
@@ -3798,6 +4128,7 @@ const fetchPlannerNotesFromSupabase = async () => {
       .order("created_at", { ascending: false })
       .limit(500);
     supabasePlannerLoading = false;
+    endDataRefreshIndicator();
     if (error) {
       if (plannerStatus) plannerStatus.textContent = "Błąd pobierania planera.";
       return false;
@@ -3806,6 +4137,7 @@ const fetchPlannerNotesFromSupabase = async () => {
     return true;
   } catch {
     supabasePlannerLoading = false;
+    endDataRefreshIndicator();
     if (plannerStatus) plannerStatus.textContent = "Błąd pobierania planera.";
     return false;
   }
@@ -5335,4 +5667,3 @@ loadCommunityConfig().then(() => {
   renderCommunityOverview();
   renderCommunityList();
 });
-

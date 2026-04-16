@@ -39,9 +39,38 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        html,
+        body {
+            background: #020303;
+        }
+
+        body.app-booting {
+            overflow: hidden;
+        }
+
+        body.app-booting > :not(.app-splash) {
+            opacity: 0 !important;
+            visibility: hidden !important;
+        }
+    </style>
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="app-booting">
+    <div id="appSplash" class="app-splash" aria-hidden="true">
+        <div class="app-splash__content">
+            <div class="app-splash__emblem">
+                <span class="app-splash__emblem-core">Quest</span>
+            </div>
+            <div class="app-splash__spinner" aria-hidden="true">
+                <span class="app-splash__spinner-ring"></span>
+                <span class="app-splash__spinner-core"></span>
+            </div>
+        </div>
+    </div>
+    <div id="dataRefreshBar" class="data-refresh-bar" aria-hidden="true">
+        <span class="data-refresh-bar__line"></span>
+    </div>
     <!-- Top Bar -->
     <header class="md3-top-app-bar md3-top-app-bar--floating">
         <div class="profile-section" id="editNicknameBtn"> <!-- Reusing ID for profile click -->
@@ -908,8 +937,3 @@
     <script src="script.js"></script>
 </body>
 </html>
-
-
-
-
-

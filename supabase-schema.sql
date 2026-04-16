@@ -142,3 +142,36 @@ create policy "production_entries_delete_own"
   on public.production_entries
   for delete
   using (auth.uid() = created_by);
+
+-- Realtime subscriptions for live UI updates.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'user_storage'
+  ) then
+    alter publication supabase_realtime add table public.user_storage;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'community_users'
+  ) then
+    alter publication supabase_realtime add table public.community_users;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'planner_public'
+  ) then
+    alter publication supabase_realtime add table public.planner_public;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'production_entries'
+  ) then
+    alter publication supabase_realtime add table public.production_entries;
+  end if;
+end
+$$;
