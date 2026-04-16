@@ -88,12 +88,12 @@ let appSplashCompleted = false;
 const completeAppSplash = () => {
   if (appSplashCompleted) return;
   appSplashCompleted = true;
-  document.body?.classList.remove("app-booting");
-  document.body?.classList.add("app-ready");
 
   if (!appSplash) return;
 
   const hideSplash = () => {
+    document.body?.classList.remove("app-booting");
+    document.body?.classList.add("app-ready");
     appSplash.hidden = true;
     appSplash.setAttribute("aria-hidden", "true");
     appSplash.removeEventListener("transitionend", hideSplash);
