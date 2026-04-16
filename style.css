@@ -1504,6 +1504,42 @@ input, textarea {
 .planner-form-card {
   padding: 20px;
 }
+.planner-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 6px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.planner-tab {
+  min-height: 42px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--md-sys-color-on-surface-variant);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+.planner-tab.is-active {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--md-sys-color-on-surface);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+.planner-tab:active {
+  transform: translateY(1px);
+}
+.planner-tab:focus-visible {
+  outline: 2px solid rgba(255,255,255,0.25);
+  outline-offset: 2px;
+}
+.planner-panel[hidden] {
+  display: none !important;
+}
 .planner-list-header {
   padding-bottom: 8px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);

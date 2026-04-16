@@ -554,114 +554,123 @@
         </div>
 
         <div id="viewPlanner" class="view-section">
-            <div class="md3-card mb-4 planner-form-card">
-                <h3 class="md3-title-medium">Planer</h3>
-                <p id="plannerStatus" class="md3-body-small text-secondary">Status...</p>
-                <form id="plannerForm" class="flex-col gap-3 mt-3 width-full">
-                    <div class="md3-text-field">
-                        <input id="plannerTitleInput" type="text" placeholder=" " required>
-                        <label>Tytuł</label>
-                    </div>
-                    <span class="md3-label-small planner-date-label">Data</span>
-                    <div class="flex-row gap-3 planner-date-row">
-                        <div class="flex-col flex-1 gap-2">
-                            <div class="md3-text-field md3-text-field--no-label width-full">
-                                <input id="plannerStartDateDisplay" type="text" placeholder=" " readonly style="cursor: pointer; position: absolute; inset: 0; opacity: 1; z-index: 1; background: transparent; border: none; padding: 0 16px; color: var(--md-sys-color-on-surface); font-family: inherit; font-size: 16px;">
-                                <input id="plannerStartDateInput" type="date" required style="position: absolute; inset: 0; opacity: 0; z-index: 2; cursor: pointer; width: 100%;">
-                                <div class="trailing-icon">
-                                    <img src="icons/calendar.svg" alt="Kalendarz">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="flex-col flex-1 gap-2">
-                            <div class="md3-text-field md3-text-field--no-label width-full">
-                                <input id="plannerEndDateDisplay" type="text" placeholder=" " readonly style="cursor: pointer; position: absolute; inset: 0; opacity: 1; z-index: 1; background: transparent; border: none; padding: 0 16px; color: var(--md-sys-color-on-surface); font-family: inherit; font-size: 16px;">
-                                <input id="plannerEndDateInput" type="date" required style="position: absolute; inset: 0; opacity: 0; z-index: 2; cursor: pointer; width: 100%;">
-                                <div class="trailing-icon">
-                                    <img src="icons/calendar.svg" alt="Kalendarz">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="md3-text-field">
-                        <textarea id="plannerContentInput" rows="3" placeholder=" " required></textarea>
-                        <label>Treść</label>
-                    </div>
-                    <div class="flex-row align-center gap-2">
-                        <input id="plannerPinnedInput" type="checkbox" class="md3-checkbox">
-                        <label for="plannerPinnedInput">Ważne</label>
-                    </div>
-                    <button id="plannerSubmitBtn" class="md3-btn md3-btn-filled width-full">Dodaj zadanie</button>
-                </form>
-            </div>
-            <div class="md3-card mb-4">
-                <div class="flex-between align-center mb-2">
-                    <h3 class="md3-title-medium">Planer: kalendarz</h3>
-                    <div class="flex-row gap-2">
-                        <button id="plannerCalendarPrevBtn" class="icon-btn-small" aria-label="Poprzedni miesiąc">
-                            <img src="icons/arrow-left.svg" alt="">
-                        </button>
-                        <button id="plannerCalendarNextBtn" class="icon-btn-small" aria-label="Następny miesiąc">
-                            <img src="icons/arrow-right.svg" alt="">
-                        </button>
-                    </div>
-                </div>
-                <div class="community-calendar planner-calendar">
-                    <div class="planner-calendar__meta">
-                        <span id="plannerCalendarMonthLabel" class="md3-label-large">...</span>
-                    </div>
-                    <div class="community-calendar__weekdays">
-                        <span>Pn</span><span>Wt</span><span>Śr</span><span>Cz</span><span>Pt</span><span>So</span><span>Nd</span>
-                    </div>
-                    <div id="plannerCalendarGrid" class="community-calendar__grid"></div>
-                </div>
-                <div class="planner-day-panel">
-                    <div class="flex-between mb-2">
-                        <h4 class="md3-title-medium" style="font-size: 14px;">Zadania dnia</h4>
-                        <span id="plannerSelectedDateLabel" class="md3-label-small text-secondary">-</span>
-                    </div>
-                    <p id="plannerSelectedDateMeta" class="md3-body-small text-secondary">Wybierz dzień, aby zobaczyć zadania.</p>
-                    <ul id="plannerDayAgenda" class="planner-day-agenda"></ul>
-                </div>
-            </div>
-            <div class="md3-card">
-                <div class="flex-between align-center mb-2 planner-list-header">
-                    <h3 class="md3-title-medium">Zadania</h3>
-                    <button id="plannerRefreshBtn" class="icon-btn planner-refresh-btn" aria-label="Odśwież">
-                        <img src="icons/refresh.svg" alt="">
-                    </button>
-                </div>
-                <ul id="plannerNotesList" class="planner-list-mobile"></ul>
+            <div class="planner-tabs" role="tablist" aria-label="Sekcje planera">
+                <button id="plannerTabPlanner" class="planner-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="plannerPanelPlanner" data-planner-tab="planner">Planer</button>
+                <button id="plannerTabProduction" class="planner-tab" type="button" role="tab" aria-selected="false" aria-controls="plannerPanelProduction" data-planner-tab="production">Produkcja</button>
             </div>
 
-            <div class="md3-card mt-4">
-                <div class="flex-between align-center mb-2">
-                    <h3 class="md3-title-medium">Produkcja dnia</h3>
-                    <button id="productionRefreshBtn" class="icon-btn planner-refresh-btn" aria-label="Odśwież produkcję">
-                        <img src="icons/refresh.svg" alt="">
-                    </button>
+            <section id="plannerPanelPlanner" class="planner-panel is-active" role="tabpanel" aria-labelledby="plannerTabPlanner">
+                <div class="md3-card mb-4 planner-form-card">
+                    <h3 class="md3-title-medium">Planer</h3>
+                    <p id="plannerStatus" class="md3-body-small text-secondary">Status...</p>
+                    <form id="plannerForm" class="flex-col gap-3 mt-3 width-full">
+                        <div class="md3-text-field">
+                            <input id="plannerTitleInput" type="text" placeholder=" " required>
+                            <label>Tytuł</label>
+                        </div>
+                        <span class="md3-label-small planner-date-label">Data</span>
+                        <div class="flex-row gap-3 planner-date-row">
+                            <div class="flex-col flex-1 gap-2">
+                                <div class="md3-text-field md3-text-field--no-label width-full">
+                                    <input id="plannerStartDateDisplay" type="text" placeholder=" " readonly style="cursor: pointer; position: absolute; inset: 0; opacity: 1; z-index: 1; background: transparent; border: none; padding: 0 16px; color: var(--md-sys-color-on-surface); font-family: inherit; font-size: 16px;">
+                                    <input id="plannerStartDateInput" type="date" required style="position: absolute; inset: 0; opacity: 0; z-index: 2; cursor: pointer; width: 100%;">
+                                    <div class="trailing-icon">
+                                        <img src="icons/calendar.svg" alt="Kalendarz">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex-col flex-1 gap-2">
+                                <div class="md3-text-field md3-text-field--no-label width-full">
+                                    <input id="plannerEndDateDisplay" type="text" placeholder=" " readonly style="cursor: pointer; position: absolute; inset: 0; opacity: 1; z-index: 1; background: transparent; border: none; padding: 0 16px; color: var(--md-sys-color-on-surface); font-family: inherit; font-size: 16px;">
+                                    <input id="plannerEndDateInput" type="date" required style="position: absolute; inset: 0; opacity: 0; z-index: 2; cursor: pointer; width: 100%;">
+                                    <div class="trailing-icon">
+                                        <img src="icons/calendar.svg" alt="Kalendarz">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="md3-text-field">
+                            <textarea id="plannerContentInput" rows="3" placeholder=" " required></textarea>
+                            <label>Treść</label>
+                        </div>
+                        <div class="flex-row align-center gap-2">
+                            <input id="plannerPinnedInput" type="checkbox" class="md3-checkbox">
+                            <label for="plannerPinnedInput">Ważne</label>
+                        </div>
+                        <button id="plannerSubmitBtn" class="md3-btn md3-btn-filled width-full">Dodaj zadanie</button>
+                    </form>
                 </div>
-                <p id="productionSummary" class="md3-body-small text-secondary">Brak danych.</p>
-                <form id="productionForm" class="flex-col gap-3 mt-3 width-full">
-                    <span class="md3-label-small field-group-label">Data</span>
-                    <div class="md3-text-field md3-text-field--no-label date-field">
-                        <input id="productionDate" type="date" required>
-                        <div class="trailing-icon">
-                            <img src="icons/calendar.svg" alt="Kalendarz">
+                <div class="md3-card mb-4">
+                    <div class="flex-between align-center mb-2">
+                        <h3 class="md3-title-medium">Planer: kalendarz</h3>
+                        <div class="flex-row gap-2">
+                            <button id="plannerCalendarPrevBtn" class="icon-btn-small" aria-label="Poprzedni miesiąc">
+                                <img src="icons/arrow-left.svg" alt="">
+                            </button>
+                            <button id="plannerCalendarNextBtn" class="icon-btn-small" aria-label="Następny miesiąc">
+                                <img src="icons/arrow-right.svg" alt="">
+                            </button>
                         </div>
                     </div>
-                    <div class="md3-text-field">
-                        <input id="productionProduct" type="text" placeholder=" " required>
-                        <label>Produkt</label>
+                    <div class="community-calendar planner-calendar">
+                        <div class="planner-calendar__meta">
+                            <span id="plannerCalendarMonthLabel" class="md3-label-large">...</span>
+                        </div>
+                        <div class="community-calendar__weekdays">
+                            <span>Pn</span><span>Wt</span><span>Śr</span><span>Cz</span><span>Pt</span><span>So</span><span>Nd</span>
+                        </div>
+                        <div id="plannerCalendarGrid" class="community-calendar__grid"></div>
                     </div>
-                    <div class="md3-text-field">
-                        <input id="productionQty" type="number" min="1" step="1" placeholder=" " required>
-                        <label>Ilosc</label>
+                    <div class="planner-day-panel">
+                        <div class="flex-between mb-2">
+                            <h4 class="md3-title-medium" style="font-size: 14px;">Zadania dnia</h4>
+                            <span id="plannerSelectedDateLabel" class="md3-label-small text-secondary">-</span>
+                        </div>
+                        <p id="plannerSelectedDateMeta" class="md3-body-small text-secondary">Wybierz dzień, aby zobaczyć zadania.</p>
+                        <ul id="plannerDayAgenda" class="planner-day-agenda"></ul>
                     </div>
-                    <button id="productionSubmitBtn" class="md3-btn md3-btn-tonal width-full">Dodaj produkcje</button>
-                </form>
-                <ul id="productionList" class="production-list"></ul>
-            </div>
+                </div>
+                <div class="md3-card">
+                    <div class="flex-between align-center mb-2 planner-list-header">
+                        <h3 class="md3-title-medium">Zadania</h3>
+                        <button id="plannerRefreshBtn" class="icon-btn planner-refresh-btn" aria-label="Odśwież">
+                            <img src="icons/refresh.svg" alt="">
+                        </button>
+                    </div>
+                    <ul id="plannerNotesList" class="planner-list-mobile"></ul>
+                </div>
+            </section>
+
+            <section id="plannerPanelProduction" class="planner-panel" role="tabpanel" aria-labelledby="plannerTabProduction" hidden>
+                <div class="md3-card">
+                    <div class="flex-between align-center mb-2">
+                        <h3 class="md3-title-medium">Produkcja dnia</h3>
+                        <button id="productionRefreshBtn" class="icon-btn planner-refresh-btn" aria-label="Odśwież produkcję">
+                            <img src="icons/refresh.svg" alt="">
+                        </button>
+                    </div>
+                    <p id="productionSummary" class="md3-body-small text-secondary">Brak danych.</p>
+                    <form id="productionForm" class="flex-col gap-3 mt-3 width-full">
+                        <span class="md3-label-small field-group-label">Data</span>
+                        <div class="md3-text-field md3-text-field--no-label date-field">
+                            <input id="productionDate" type="date" required>
+                            <div class="trailing-icon">
+                                <img src="icons/calendar.svg" alt="Kalendarz">
+                            </div>
+                        </div>
+                        <div class="md3-text-field">
+                            <input id="productionProduct" type="text" placeholder=" " required>
+                            <label>Produkt</label>
+                        </div>
+                        <div class="md3-text-field">
+                            <input id="productionQty" type="number" min="1" step="1" placeholder=" " required>
+                            <label>Ilosc</label>
+                        </div>
+                        <button id="productionSubmitBtn" class="md3-btn md3-btn-tonal width-full">Dodaj produkcje</button>
+                    </form>
+                    <ul id="productionList" class="production-list"></ul>
+                </div>
+            </section>
             
             <!-- Hidden planner elements -->
             <div id="plannerProfileAvatar" hidden></div>

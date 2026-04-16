@@ -4105,6 +4105,10 @@ const plannerCalendarGrid = document.getElementById("plannerCalendarGrid");
 const plannerSelectedDateLabel = document.getElementById("plannerSelectedDateLabel");
 const plannerSelectedDateMeta = document.getElementById("plannerSelectedDateMeta");
 const plannerDayAgenda = document.getElementById("plannerDayAgenda");
+const plannerTabPlanner = document.getElementById("plannerTabPlanner");
+const plannerTabProduction = document.getElementById("plannerTabProduction");
+const plannerPanelPlanner = document.getElementById("plannerPanelPlanner");
+const plannerPanelProduction = document.getElementById("plannerPanelProduction");
 
 const productionForm = document.getElementById("productionForm");
 const productionDateInput = document.getElementById("productionDate");
@@ -4113,6 +4117,32 @@ const productionQtyInput = document.getElementById("productionQty");
 const productionList = document.getElementById("productionList");
 const productionSummary = document.getElementById("productionSummary");
 const productionRefreshBtn = document.getElementById("productionRefreshBtn");
+
+const setPlannerSection = (section) => {
+  const showPlanner = section !== "production";
+
+  plannerTabPlanner?.classList.toggle("is-active", showPlanner);
+  plannerTabPlanner?.setAttribute("aria-selected", showPlanner ? "true" : "false");
+  plannerPanelPlanner && (plannerPanelPlanner.hidden = !showPlanner);
+
+  plannerTabProduction?.classList.toggle("is-active", !showPlanner);
+  plannerTabProduction?.setAttribute("aria-selected", showPlanner ? "false" : "true");
+  plannerPanelProduction && (plannerPanelProduction.hidden = showPlanner);
+};
+
+if (plannerTabPlanner) {
+  plannerTabPlanner.addEventListener("click", () => {
+    setPlannerSection("planner");
+  });
+}
+
+if (plannerTabProduction) {
+  plannerTabProduction.addEventListener("click", () => {
+    setPlannerSection("production");
+  });
+}
+
+setPlannerSection("planner");
 
 const plannerKey = "planner.notes.v1";
 const productionKey = "planner.production.v1";
