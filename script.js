@@ -71,7 +71,10 @@ const supabaseCommunitySyncDebounceMs = 900;
 let supabaseRealtimeChannel = null;
 let supabaseRealtimeRefreshTimer = null;
 const supabaseRealtimePending = new Set();
-const supabaseRealtimeDebounceMs = 450;
+const supabaseRealtimeDebounceMs = 180;
+let supabaseRealtimeRetryTimer = null;
+let supabaseLiveHeartbeatTimer = null;
+const supabaseLiveHeartbeatMs = 20000;
 const dataRefreshBar = document.getElementById("dataRefreshBar");
 let dataRefreshActiveCount = 0;
 let dataRefreshHideTimer = null;
@@ -897,10 +900,42 @@ const scheduleSupabaseRealtimeRefresh = (target, delay = supabaseRealtimeDebounc
   }, delay);
 };
 
+const scheduleSupabaseRealtimeRetry = (delay = 1200) => {
+  window.clearTimeout(supabaseRealtimeRetryTimer);
+  supabaseRealtimeRetryTimer = window.setTimeout(() => {
+    if (!supabaseUser || document.visibilityState === "hidden" || !navigator.onLine) return;
+    initSupabaseRealtime();
+    refreshSupabaseData(true);
+  }, delay);
+};
+
+const stopSupabaseLiveHeartbeat = () => {
+  window.clearInterval(supabaseLiveHeartbeatTimer);
+  supabaseLiveHeartbeatTimer = null;
+};
+
+const startSupabaseLiveHeartbeat = () => {
+  stopSupabaseLiveHeartbeat();
+  if (!prefersAggressiveLiveMode || !supabaseUser || !navigator.onLine || document.visibilityState === "hidden") {
+    return;
+  }
+
+  supabaseLiveHeartbeatTimer = window.setInterval(() => {
+    if (!supabaseUser || document.visibilityState === "hidden" || !navigator.onLine) return;
+    if (!supabaseRealtimeChannel) {
+      initSupabaseRealtime();
+    }
+    refreshSupabaseData(true);
+  }, supabaseLiveHeartbeatMs);
+};
+
 const teardownSupabaseRealtime = () => {
   supabaseRealtimePending.clear();
   window.clearTimeout(supabaseRealtimeRefreshTimer);
   supabaseRealtimeRefreshTimer = null;
+  window.clearTimeout(supabaseRealtimeRetryTimer);
+  supabaseRealtimeRetryTimer = null;
+  stopSupabaseLiveHeartbeat();
   if (supabaseRealtimeChannel && supabaseClient) {
     supabaseClient.removeChannel(supabaseRealtimeChannel);
   }
@@ -946,6 +981,13 @@ const initSupabaseRealtime = () => {
     .subscribe((status) => {
       if (status === "SUBSCRIBED") {
         setProfileSyncStatus("Realtime aktywny");
+        startSupabaseLiveHeartbeat();
+        return;
+      }
+
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+        setProfileSyncStatus("Realtime wznawianie...");
+        scheduleSupabaseRealtimeRetry(prefersAggressiveLiveMode ? 700 : 1200);
       }
     });
 };
@@ -3839,6 +3881,8 @@ const isStandalone = (() => {
   return displayMode || window.navigator.standalone === true;
 })();
 
+const prefersAggressiveLiveMode = isIos || isStandalone;
+
 const showInstallBanner = () => {
   if (!installBanner) return;
   if (isStandalone) {
@@ -3931,7 +3975,16 @@ window.addEventListener("focus", () => {
   refreshRemoteData();
   requestSwUpdate();
   if (supabaseUser) initSupabaseRealtime();
-  refreshSupabaseData();
+  startSupabaseLiveHeartbeat();
+  refreshSupabaseData(prefersAggressiveLiveMode);
+});
+
+window.addEventListener("pageshow", () => {
+  refreshRemoteData(prefersAggressiveLiveMode);
+  requestSwUpdate();
+  if (supabaseUser) initSupabaseRealtime();
+  startSupabaseLiveHeartbeat();
+  refreshSupabaseData(true);
 });
 
 window.addEventListener("online", () => {
@@ -3939,6 +3992,7 @@ window.addEventListener("online", () => {
   requestSwUpdate();
   updateConnectionIndicator();
   if (supabaseUser) initSupabaseRealtime();
+  startSupabaseLiveHeartbeat();
   flushSupabaseSync();
   flushCommunitySync();
   refreshSupabaseData(true);
@@ -3953,15 +4007,18 @@ document.addEventListener("visibilitychange", () => {
     refreshRemoteData();
     requestSwUpdate();
     if (supabaseUser) initSupabaseRealtime();
-    refreshSupabaseData();
+    startSupabaseLiveHeartbeat();
+    refreshSupabaseData(prefersAggressiveLiveMode);
     return;
   }
 
+  stopSupabaseLiveHeartbeat();
   flushSupabaseSync();
   flushCommunitySync();
 });
 
 window.addEventListener("pagehide", () => {
+  stopSupabaseLiveHeartbeat();
   flushSupabaseSync();
   flushCommunitySync();
 });
