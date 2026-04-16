@@ -133,109 +133,14 @@ body.app-booting .data-refresh-bar {
   100% { transform: translateX(420%); }
 }
 
-.app-splash {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  background: #000000;
-  opacity: 1;
-  visibility: visible;
-  transition: opacity 0.7s ease, visibility 0.7s ease;
-}
-
 .app-splash.is-exiting {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
 }
 
-.app-splash__content {
-  position: absolute;
-}
-
-.app-splash__content {
-  inset: 0;
-}
-
-.app-splash__content {
-  position: relative;
-  inset: auto;
-  width: min(100%, 520px);
-  padding: 32px 24px calc(32px + env(safe-area-inset-bottom));
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-  text-align: center;
-}
-
-.app-splash__emblem {
-  position: relative;
-  width: auto;
-  min-height: auto;
-  display: grid;
-  place-items: center;
-  background: transparent;
-  box-shadow: none;
-}
-
-.app-splash__emblem-core {
-  position: relative;
-  z-index: 1;
-  font-family: "Pacifico", cursive;
-  font-size: clamp(68px, 18vw, 116px);
-  font-weight: 400;
-  letter-spacing: 0;
-  color: #f7fff9;
-  text-shadow: 0 0 18px rgba(255, 255, 255, 0.12);
-  transform: translateY(-2px);
-  white-space: nowrap;
-}
-
-.app-splash__spinner {
-  position: relative;
-  width: 34px;
-  height: 34px;
-}
-
-.app-splash__spinner-ring,
-.app-splash__spinner-core {
-  position: absolute;
-  inset: 0;
-}
-
-.app-splash__spinner-ring {
-  border-radius: 50%;
-  background: conic-gradient(
-    from 180deg,
-    rgba(255, 255, 255, 0.08) 0deg,
-    rgba(255, 255, 255, 0.08) 210deg,
-    rgba(255, 255, 255, 0.95) 300deg,
-    rgba(255, 255, 255, 0.15) 360deg
-  );
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
-  animation: splashSpinnerRing 0.9s linear infinite;
-}
-
-.app-splash__spinner-core {
-  inset: 7px;
-  border-radius: 50%;
-  background: #000000;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
-}
-
 body.app-ready > :not(.app-splash) {
   animation: appBootReveal 0.45s ease;
-}
-
-@keyframes splashSpinnerRing {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
 }
 
 @keyframes appBootReveal {
