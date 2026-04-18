@@ -94,6 +94,85 @@ body {
   -webkit-tap-highlight-color: transparent;
   user-select: none; -webkit-user-select: none;
 }
+
+/* App Boot Screen Styles */
+.app-boot {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: #000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.6s;
+}
+
+.app-boot__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  /* Usuwamy transformację translateY, aby logo nie skakało względem statycznego splasha */
+  animation: bootFadeIn 0.5s ease-out forwards;
+}
+
+.app-boot__logo {
+  font-family: "Pacifico", cursive;
+  font-size: 64px;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  /* Subtle technical glow */
+  filter: drop-shadow(0 0 15px rgba(92, 255, 164, 0.2));
+}
+
+.app-boot__loader {
+  width: 32px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  position: relative;
+  overflow: hidden;
+}
+.app-boot__loader::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 40%;
+  background: var(--md-sys-color-tertiary);
+  border-radius: 2px;
+  animation: bootProgress 1.5s ease-in-out infinite;
+}
+
+.app-boot__status {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-family: var(--auth-font);
+  /* Status i loader pojawiają się ułamek sekundy później */
+  animation: bootFadeIn 0.8s ease-out 0.2s both;
+}
+
+.app-boot__version {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.15);
+  letter-spacing: 0.05em;
+  position: absolute;
+  bottom: 40px;
+  animation: bootFadeIn 1s ease-out 0.4s both;
+}
+
+@keyframes bootProgress {
+  0% { left: -40%; }
+  100% { left: 100%; }
+}
+
+/* Zmieniona animacja: tylko przezroczystość, bez ruchu */
+@keyframes bootFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 body.topbar-float {
   padding-top: 0;
 }
@@ -122,10 +201,6 @@ body.topbar-float {
   background: linear-gradient(90deg, rgba(92, 255, 164, 0), rgba(92, 255, 164, 0.95), rgba(255, 255, 255, 0.9));
   box-shadow: 0 0 14px rgba(92, 255, 164, 0.22);
   animation: dataRefreshSlide 1.15s ease-in-out infinite;
-}
-
-body.app-booting .data-refresh-bar {
-  opacity: 0 !important;
 }
 
 @keyframes dataRefreshSlide {

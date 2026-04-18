@@ -1,4 +1,38 @@
-﻿const storageKey = "worklog.entries.v1";
+﻿/**
+ * Professional App Bootloader
+ */
+const initBootloader = () => {
+  const MIN_BOOT_TIME = 4500; // Wydłużony czas bootowania dla uzyskania efektu premium (4.5s)
+  const startTime = Date.now();
+  const bootScreen = document.getElementById("appBoot");
+  const body = document.body;
+
+  const removeBootScreen = () => {
+    const elapsed = Date.now() - startTime;
+    const remaining = Math.max(0, MIN_BOOT_TIME - elapsed);
+
+    setTimeout(() => {
+      if (bootScreen) {
+        bootScreen.style.opacity = "0";
+        bootScreen.style.visibility = "hidden";
+        
+        setTimeout(() => {
+          body.classList.remove("app-booting");
+        }, 600);
+      }
+    }, remaining);
+  };
+
+  if (document.readyState === "complete") {
+    removeBootScreen();
+  } else {
+    window.addEventListener("load", removeBootScreen);
+  }
+};
+
+initBootloader();
+
+const storageKey = "worklog.entries.v1";
 
 const storage = (() => {
   let driver;
@@ -78,64 +112,6 @@ const supabaseLiveHeartbeatMs = 20000;
 const dataRefreshBar = document.getElementById("dataRefreshBar");
 let dataRefreshActiveCount = 0;
 let dataRefreshHideTimer = null;
-const appSplash = document.getElementById("appSplash");
-const appRoot = document.getElementById("appRoot");
-const appBootStartedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
-const appBootMinDuration = 5000;
-const appBootMaxDuration = 5200;
-let appBootReleased = false;
-let appBootCompleted = false;
-
-const completeAppBoot = () => {
-  if (appBootCompleted) return;
-  appBootCompleted = true;
-
-  const finalizeBoot = () => {
-    if (appSplash) {
-      appSplash.hidden = true;
-      appSplash.setAttribute("aria-hidden", "true");
-    }
-    document.body?.classList.remove("app-booting");
-  };
-
-  if (appRoot) {
-    appRoot.hidden = false;
-    appRoot.setAttribute("aria-hidden", "false");
-  }
-
-  window.requestAnimationFrame(() => {
-    window.requestAnimationFrame(() => {
-      document.body?.classList.add("app-ready");
-      if (!appSplash) {
-        finalizeBoot();
-        return;
-      }
-
-      appSplash.addEventListener("transitionend", finalizeBoot, { once: true });
-      appSplash.classList.add("is-exiting");
-      window.setTimeout(finalizeBoot, 260);
-    });
-  });
-};
-
-const releaseAppBoot = () => {
-  if (appBootReleased) return;
-  appBootReleased = true;
-  const now = typeof performance !== "undefined" ? performance.now() : Date.now();
-  const elapsed = now - appBootStartedAt;
-  const remaining = Math.max(0, appBootMinDuration - elapsed);
-  window.setTimeout(() => {
-    window.requestAnimationFrame(completeAppBoot);
-  }, remaining);
-};
-
-if (document.readyState === "complete") {
-  releaseAppBoot();
-} else {
-  window.addEventListener("load", releaseAppBoot, { once: true });
-}
-
-window.setTimeout(releaseAppBoot, appBootMaxDuration);
 
 const plannerUsesSupabase = () => Boolean(supabaseEnabled && supabaseClient && supabaseUser);
 const productionUsesSupabase = () => Boolean(supabaseEnabled && supabaseClient && supabaseUser);
