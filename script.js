@@ -599,7 +599,7 @@ const normalizeProductionRow = (row) => ({
   createdAt: row?.created_at || "",
 });
 
-const fetchProductionFromSupabase = async (dateFilter = "") => {
+const fetchProductionFromSupabase = async () => {
   if (!productionUsesSupabase()) return false;
   if (supabaseProductionLoading) return false;
   supabaseProductionLoading = true;
@@ -608,10 +608,9 @@ const fetchProductionFromSupabase = async (dateFilter = "") => {
     let query = supabaseClient
       .from(supabaseProductionTable)
       .select("*")
-      .order("created_at", { ascending: false });
-    if (dateFilter) {
-      query = query.eq("date", dateFilter);
-    }
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(500);
     const { data, error } = await query;
     supabaseProductionLoading = false;
     endDataRefreshIndicator();
@@ -629,9 +628,9 @@ const fetchProductionFromSupabase = async (dateFilter = "") => {
   }
 };
 
-const refreshProductionFromSupabase = (dateFilter = "") => {
+const refreshProductionFromSupabase = () => {
   if (!productionUsesSupabase()) return;
-  return fetchProductionFromSupabase(dateFilter).then((updated) => {
+  return fetchProductionFromSupabase().then((updated) => {
     if (updated) {
       renderProductionList();
     }
@@ -846,7 +845,7 @@ const refreshSupabaseData = async (force = false) => {
     pullSupabaseToLocal(),
     refreshCommunityFromSupabase(),
     refreshPlannerFromSupabase({ syncLocal: true }),
-    refreshProductionFromSupabase(getTodayKey()),
+    refreshProductionFromSupabase(),
   ]);
 
   return true;
@@ -874,7 +873,7 @@ const flushSupabaseRealtimeRefresh = async () => {
     tasks.push(refreshPlannerFromSupabase());
   }
   if (pending.has("production")) {
-    tasks.push(refreshProductionFromSupabase(getTodayKey()));
+    tasks.push(refreshProductionFromSupabase());
   }
 
   await Promise.allSettled(tasks);
@@ -2170,7 +2169,7 @@ const loadRecentEntries = () => {
   });
 };
 
-const entriesPageSize = 4;
+const entriesPageSize = 10;
 let entriesVisibleCount = entriesPageSize;
 let entriesExpanded = false;
 
@@ -4624,26 +4623,29 @@ const renderPlannerNotes = () => {
 const renderProductionList = () => {
   if (!productionList || !productionSummary || !productionDateInput) return;
   const selectedDate = productionDateInput.value || getTodayKey();
-  let items = [];
+  let allItems = [];
   if (productionUsesSupabase()) {
     if (!Array.isArray(supabaseProductionEntries)) {
       productionSummary.textContent = "Ladowanie produkcji...";
       productionList.innerHTML = "";
       return;
     }
-    items = supabaseProductionEntries.filter((item) => item && item.date === selectedDate);
+    allItems = supabaseProductionEntries;
   } else {
-    items = loadProductionEntries().filter((item) => item && item.date === selectedDate);
+    allItems = loadProductionEntries();
   }
 
-  const totalQty = items.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+  // Oblicz podsumowanie tylko dla wybranego dnia
+  const dayItems = allItems.filter((item) => item && item.date === selectedDate);
+  const totalQty = dayItems.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
+  
   productionSummary.textContent =
-    items.length === 0
-      ? "Brak produkcji dla wybranego dnia."
-      : `Dzien: ${selectedDate} | Pozycji: ${items.length} | Suma sztuk: ${totalQty}`;
+    dayItems.length === 0
+      ? `Brak produkcji dla dnia ${selectedDate}.`
+      : `Dzień: ${selectedDate} | Pozycji: ${dayItems.length} | Suma: ${totalQty} szt.`;
 
   productionList.innerHTML = "";
-  if (items.length === 0) {
+  if (allItems.length === 0) {
     const empty = document.createElement("li");
     empty.className = "entries-v3-empty";
     empty.textContent = "Brak wpisow produkcji.";
@@ -4651,7 +4653,18 @@ const renderProductionList = () => {
     return;
   }
 
-  items.forEach((item) => {
+  let lastDate = "";
+  allItems.forEach((item) => {
+    // Dodaj nagłówek daty, jeśli się zmieniła (grupowanie)
+    if (item.date && item.date !== lastDate) {
+      lastDate = item.date;
+      const header = document.createElement("li");
+      header.className = "entries-v3-month";
+      header.style.marginTop = "16px";
+      header.textContent = item.date === getTodayKey() ? "Dzisiaj" : item.date;
+      productionList.appendChild(header);
+    }
+
     const li = document.createElement("li");
     li.className = "production-item";
 
@@ -4671,7 +4684,7 @@ const renderProductionList = () => {
     const meta = document.createElement("div");
     meta.className = "production-item__meta";
     const authorLabel = item.authorName ? ` • ${item.authorName}` : "";
-    meta.textContent = `${selectedDate}${authorLabel}`;
+    meta.textContent = `${item.date}${authorLabel}`;
 
     text.appendChild(name);
     text.appendChild(meta);
@@ -4721,7 +4734,7 @@ if (productionDateInput) {
   productionDateInput.addEventListener("change", () => {
     const selectedDate = productionDateInput.value || getTodayKey();
     if (productionUsesSupabase()) {
-      refreshProductionFromSupabase(selectedDate);
+      refreshProductionFromSupabase();
       return;
     }
     renderProductionList();
@@ -4731,9 +4744,9 @@ if (productionDateInput) {
 if (productionRefreshBtn) {
   productionRefreshBtn.addEventListener("click", () => {
     playClickSound();
-    const selectedDate = productionDateInput?.value || getTodayKey();
+    const selectedDate = productionDateInput?.value;
     if (productionUsesSupabase()) {
-      refreshProductionFromSupabase(selectedDate);
+      refreshProductionFromSupabase();
       return;
     }
     renderProductionList();
